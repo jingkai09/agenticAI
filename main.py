@@ -21,7 +21,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.schema import Document
 
 # Configure Gemini API
-api_key = st.secrets["gemini_api"]
+api_key = st.secrets["gemini_key"]
 genai.configure(api_key=api_key)
 
 class QueryType(Enum):
