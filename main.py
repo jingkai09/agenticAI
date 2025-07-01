@@ -166,7 +166,7 @@ class PropertyRAGSystem:
             - After maintenance tickets: User might ask "what type of issues", "who reported them", "when were they created"
             - After payment queries: User might ask "which tenants", "what amounts", "when are they due"
             - After lease queries: User might ask "show lease details", "what are the terms", "when do they expire"
-            - Common follow-ups: "show me more details", "who are they", "what about X", "tell me more", "expand on that"""",
+            - Common follow-ups: "show me more details", "who are they", "what about X", "tell me more", "expand on that" """,
             
             """Context Resolution Examples:
             - "how many tenants" → "who are they" = SELECT first_name, last_name, email, phone FROM tenants
