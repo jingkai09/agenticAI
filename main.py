@@ -21,7 +21,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.schema import Document
 
 # Configure Gemini API
-api_key = st.secrets["gemini_key"]
+api_key = st.secrets["gemini_api"]
 genai.configure(api_key=api_key)
 
 class QueryType(Enum):
@@ -560,54 +560,117 @@ class PropertyManagementAgent:
         """Generate insights considering conversation history"""
         
         if df is None or df.empty:
-            return "No data was returned from your query. You might want to check if the data exists in your database or try a different search criteria."
-        
-        conversation_summary = ""
-        if len(memory.turns) > 1:
-            recent_queries = [turn.user_query for turn in memory.turns[-3:]]
-            conversation_summary = f"Recent conversation: {' → '.join(recent_queries)}"
-        
-        # Create a more detailed data summary
-        data_summary = ""
-        if len(df) > 0:
-            data_summary = f"""
-            Total records found: {len(df)}
-            Columns: {', '.join(df.columns.tolist())}
-            Sample records: {df.head(3).to_dict('records') if len(df) > 0 else 'None'}
-            """
+            return """
+            **📊 No Data Found**
             
-            # Add numeric summaries if available
-            numeric_cols = df.select_dtypes(include=[np.number]).columns
-            if len(numeric_cols) > 0:
-                data_summary += f"\nNumeric data summary: "
-                for col in numeric_cols[:2]:  # Limit to first 2 numeric columns
-                    data_summary += f"{col}: avg={df[col].mean():.2f}, min={df[col].min()}, max={df[col].max()}; "
+            Your query didn't return any results. This could mean:
+            - The data you're looking for doesn't exist in the database
+            - Your search criteria might be too specific
+            - There might be data quality issues
+            
+            **💡 Suggestions:**
+            - Try broadening your search criteria
+            - Check if similar data exists with different filters
+            - Verify the database contains the expected information
+            """
         
-        insight_prompt = f"""
-        You are analyzing property management data. Based on the query results, provide practical business insights.
+        # Analyze the data structure and content
+        insights = []
         
-        User asked: "{query}"
+        # Basic data overview
+        insights.append(f"**📈 Data Overview:** Found {len(df)} record{'s' if len(df) != 1 else ''}")
         
-        Data Analysis:
-        {data_summary}
+        # Column analysis
+        columns = df.columns.tolist()
+        if 'first_name' in columns and 'last_name' in columns:
+            insights.append(f"**👥 People Data:** This appears to be tenant/person information")
+        elif 'property_name' in columns or 'address' in columns:
+            insights.append(f"**🏠 Property Data:** This shows property-related information")
+        elif 'amount' in columns or 'rent_amount' in columns:
+            insights.append(f"**💰 Financial Data:** This contains monetary information")
+        elif 'status' in columns:
+            if 'status' in df.columns:
+                status_counts = df['status'].value_counts()
+                insights.append(f"**📊 Status Breakdown:** {dict(status_counts)}")
         
-        {conversation_summary}
+        # Numeric analysis
+        numeric_cols = df.select_dtypes(include=[np.number]).columns
+        if len(numeric_cols) > 0:
+            for col in numeric_cols[:2]:  # Analyze first 2 numeric columns
+                if 'amount' in col.lower() or 'rent' in col.lower():
+                    avg_val = df[col].mean()
+                    min_val = df[col].min()
+                    max_val = df[col].max()
+                    insights.append(f"**💵 {col.title()}:** Average ${avg_val:,.2f} (Range: ${min_val:,.2f} - ${max_val:,.2f})")
+                elif 'count' in col.lower() or col.lower() in ['bedrooms', 'bathrooms']:
+                    avg_val = df[col].mean()
+                    insights.append(f"**🏠 {col.title()}:** Average {avg_val:.1f}")
         
-        Please provide insights that include:
-        1. What this data tells us about the business
-        2. Any notable patterns or trends
-        3. Actionable recommendations for property management
-        4. Potential areas of concern or opportunity
-        5. How this relates to property management best practices
+        # Query-specific insights
+        query_lower = query.lower()
+        if 'overdue' in query_lower or 'late' in query_lower:
+            if len(df) > 0:
+                insights.append(f"**⚠️ Payment Concern:** You have {len(df)} overdue payment{'s' if len(df) != 1 else ''}. Consider immediate follow-up.")
+            else:
+                insights.append(f"**✅ Payment Status:** Great! No overdue payments found.")
         
-        Be specific and practical. Avoid just describing the data - provide business value and recommendations.
-        """
+        elif 'vacant' in query_lower:
+            if len(df) > 0:
+                vacancy_rate = len(df)  # This would need total units for actual rate
+                insights.append(f"**🏠 Vacancy Alert:** {len(df)} vacant unit{'s' if len(df) != 1 else ''}. Focus on marketing and tenant acquisition.")
+            else:
+                insights.append(f"**✅ Occupancy:** Excellent! No vacant units.")
         
-        try:
-            response = self.model.generate_content(insight_prompt)
-            return response.text
-        except Exception as e:
-            return f"I found {len(df)} records matching your query. While I couldn't generate detailed insights due to a technical issue, you can review the data above and consider how it relates to your property management operations."
+        elif 'maintenance' in query_lower:
+            if len(df) > 0:
+                if 'priority' in df.columns:
+                    priority_counts = df['priority'].value_counts()
+                    insights.append(f"**🔧 Maintenance Priorities:** {dict(priority_counts)}")
+                insights.append(f"**📝 Action Required:** {len(df)} maintenance item{'s' if len(df) != 1 else ''} need{'s' if len(df) == 1 else ''} attention.")
+        
+        elif 'tenant' in query_lower:
+            if len(df) > 0:
+                insights.append(f"**👥 Tenant Portfolio:** Managing {len(df)} tenant{'s' if len(df) != 1 else ''}.")
+                if len(df) < 10:
+                    insights.append("**💡 Growth Opportunity:** Small tenant base - consider expansion strategies.")
+                elif len(df) > 100:
+                    insights.append("**🎯 Scale Management:** Large tenant base - consider management software automation.")
+        
+        # Business recommendations
+        recommendations = []
+        
+        if len(df) > 0:
+            if 'amount' in str(df.columns).lower():
+                recommendations.append("💰 **Financial Tracking:** Monitor these amounts for cash flow planning")
+            
+            if 'email' in df.columns:
+                recommendations.append("📧 **Communication:** Use email data for tenant communications and updates")
+            
+            if 'phone' in df.columns:
+                recommendations.append("📞 **Contact Management:** Maintain updated phone numbers for emergency contacts")
+        
+        # Conversation context
+        if len(memory.turns) > 1:
+            insights.append(f"**🔄 Follow-up Analysis:** This builds on your previous query about '{memory.turns[-2].user_query if len(memory.turns) >= 2 else 'previous topic'}'")
+        
+        # Combine all insights
+        final_insights = "\n\n".join(insights)
+        
+        if recommendations:
+            final_insights += "\n\n**🎯 Recommended Actions:**\n" + "\n".join([f"- {rec}" for rec in recommendations])
+        
+        # Add next steps
+        final_insights += "\n\n**🚀 Suggested Next Steps:**"
+        if 'tenant' in query_lower:
+            final_insights += "\n- Review tenant satisfaction and lease renewal dates\n- Check payment history and communication preferences"
+        elif 'property' in query_lower:
+            final_insights += "\n- Assess property performance and maintenance needs\n- Analyze occupancy rates and market positioning"
+        elif 'payment' in query_lower:
+            final_insights += "\n- Set up automated payment reminders\n- Review collection procedures for overdue amounts"
+        else:
+            final_insights += "\n- Consider how this data impacts your overall property management strategy\n- Look for patterns that could improve operational efficiency"
+        
+        return final_insights
     
     def _generate_followup_suggestions(self, df: pd.DataFrame, query: str) -> List[str]:
         """Generate intelligent follow-up suggestions based on results"""
