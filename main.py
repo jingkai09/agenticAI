@@ -937,20 +937,41 @@ def main():
         st.subheader("⚡ Quick Actions")
         
         if st.button("📊 Show Database Overview"):
-            st.session_state.query_input = "Give me an overview of the database with counts of tenants, properties, and units"
-            st.rerun()
+            # Process the query directly instead of setting session state
+            with st.spinner("🤔 Processing quick action..."):
+                result = st.session_state.agent.process_query(
+                    "Give me an overview of the database with counts of tenants, properties, and units", 
+                    db_path, 
+                    st.session_state.session_id
+                )
+            st.success("✅ Database overview processed! Check the main area for results.")
         
         if st.button("🏠 Property Summary"):
-            st.session_state.query_input = "How many properties do we manage and what's the total unit count?"
-            st.rerun()
+            with st.spinner("🤔 Processing quick action..."):
+                result = st.session_state.agent.process_query(
+                    "How many properties do we manage and what's the total unit count?", 
+                    db_path, 
+                    st.session_state.session_id
+                )
+            st.success("✅ Property summary processed! Check the main area for results.")
         
         if st.button("💰 Payment Status"):
-            st.session_state.query_input = "Show me the current payment status and any overdue amounts"
-            st.rerun()
+            with st.spinner("🤔 Processing quick action..."):
+                result = st.session_state.agent.process_query(
+                    "Show me the current payment status and any overdue amounts", 
+                    db_path, 
+                    st.session_state.session_id
+                )
+            st.success("✅ Payment status processed! Check the main area for results.")
         
         if st.button("🔧 Maintenance Overview"):
-            st.session_state.query_input = "What's the current status of maintenance tickets?"
-            st.rerun()
+            with st.spinner("🤔 Processing quick action..."):
+                result = st.session_state.agent.process_query(
+                    "What's the current status of maintenance tickets?", 
+                    db_path, 
+                    st.session_state.session_id
+                )
+            st.success("✅ Maintenance overview processed! Check the main area for results.")
         
         # Memory debugging (can be hidden in production)
         with st.expander("🔬 Memory Debug Info"):
