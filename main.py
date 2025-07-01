@@ -1,4 +1,4 @@
-# enhanced_property_agent_with_memory.py
+# enhanced_property_agent_with_session_management.py
 
 import os
 import re
@@ -10,6 +10,7 @@ from dataclasses import dataclass, asdict
 from enum import Enum
 import pickle
 import hashlib
+from pathlib import Path
 
 import streamlit as st
 import pandas as pd
@@ -255,6 +256,98 @@ class PropertyRAGSystem:
                 conversation_context.append(turn_context)
         
         return domain_context, conversation_context
+
+# Session Management Functions
+def save_sessions_to_disk(agent, filepath: str = "sessions.json"):
+    """Save all sessions to disk for persistence"""
+    sessions_data = {}
+    for session_id, memory in agent.memory_store.items():
+        # Convert ConversationMemory to serializable format
+        sessions_data[session_id] = {
+            "session_id": memory.session_id,
+            "conversation_summary": memory.conversation_summary,
+            "created_at": memory.turns[0].timestamp.isoformat() if memory.turns else datetime.now().isoformat(),
+            "last_activity": memory.turns[-1].timestamp.isoformat() if memory.turns else datetime.now().isoformat(),
+            "turn_count": len(memory.turns),
+            "turns": [
+                {
+                    "timestamp": turn.timestamp.isoformat(),
+                    "user_query": turn.user_query,
+                    "query_type": turn.query_type.value,
+                    "sql_generated": turn.sql_generated,
+                    "ai_response": turn.ai_response,
+                    "entities_mentioned": turn.entities_mentioned,
+                    "follow_up_suggestions": turn.follow_up_suggestions
+                }
+                for turn in memory.turns
+            ],
+            "current_context": memory.current_context,
+            "entity_references": memory.entity_references,
+            "active_filters": memory.active_filters
+        }
+    
+    with open(filepath, 'w') as f:
+        json.dump(sessions_data, f, indent=2)
+
+def load_sessions_from_disk(agent, filepath: str = "sessions.json"):
+    """Load sessions from disk"""
+    if not Path(filepath).exists():
+        return
+    
+    try:
+        with open(filepath, 'r') as f:
+            sessions_data = json.load(f)
+        
+        for session_id, session_info in sessions_data.items():
+            # Reconstruct ConversationMemory
+            memory = ConversationMemory(
+                session_id=session_id,
+                turns=[],
+                current_context=session_info.get("current_context", {}),
+                entity_references=session_info.get("entity_references", {}),
+                active_filters=session_info.get("active_filters", {}),
+                last_query_results=None,
+                conversation_summary=session_info.get("conversation_summary", "")
+            )
+            
+            # Reconstruct turns
+            for turn_data in session_info.get("turns", []):
+                turn = ConversationTurn(
+                    timestamp=datetime.fromisoformat(turn_data["timestamp"]),
+                    user_query=turn_data["user_query"],
+                    query_type=QueryType(turn_data["query_type"]),
+                    sql_generated=turn_data.get("sql_generated"),
+                    results=None,  # Results are not persisted to avoid large files
+                    ai_response=turn_data["ai_response"],
+                    context_used=[],
+                    entities_mentioned=turn_data.get("entities_mentioned", []),
+                    follow_up_suggestions=turn_data.get("follow_up_suggestions", [])
+                )
+                memory.turns.append(turn)
+            
+            agent.memory_store[session_id] = memory
+    except Exception as e:
+        st.error(f"Error loading sessions: {e}")
+
+def get_session_summary(memory: ConversationMemory) -> dict:
+    """Get a summary of a session for display"""
+    if not memory.turns:
+        return {
+            "title": "Empty Session",
+            "last_activity": "No activity",
+            "question_count": 0,
+            "preview": "No questions asked"
+        }
+    
+    first_question = memory.turns[0].user_query[:50] + "..." if len(memory.turns[0].user_query) > 50 else memory.turns[0].user_query
+    last_activity = memory.turns[-1].timestamp.strftime("%Y-%m-%d %H:%M")
+    
+    return {
+        "title": f"Session: {first_question}",
+        "last_activity": last_activity,
+        "question_count": len(memory.turns),
+        "preview": f"Last: {memory.turns[-1].user_query[:40]}..." if len(memory.turns[-1].user_query) > 40 else memory.turns[-1].user_query
+    }
 
 class PropertyManagementAgent:
     """Enhanced agentic AI system with comprehensive memory"""
@@ -774,7 +867,178 @@ class PropertyManagementAgent:
         
         return " | ".join(summary_parts)
 
-# Enhanced Streamlit UI with Memory
+# Enhanced Streamlit UI with Session Management
+def enhanced_sidebar_with_sessions():
+    """Enhanced sidebar with session management"""
+    with st.sidebar:
+        st.header("🔧 Configuration")
+        
+        # Database upload
+        db_file = st.file_uploader("Upload SQLite Database", type=["db", "sqlite"])
+        if db_file:
+            db_path = "/tmp/uploaded.db"
+            with open(db_path, "wb") as f:
+                f.write(db_file.getbuffer())
+        else:
+            db_path = "database.db"
+        
+        st.divider()
+        
+        # Session Management
+        st.header("📚 Session Management")
+        
+        # Load sessions on startup
+        if 'sessions_loaded' not in st.session_state:
+            load_sessions_from_disk(st.session_state.agent)
+            st.session_state.sessions_loaded = True
+        
+        # Current session info
+        current_memory = st.session_state.agent.get_or_create_memory(st.session_state.session_id)
+        current_summary = get_session_summary(current_memory)
+        
+        st.info(f"""
+        **Current Session:** `{st.session_state.session_id}`  
+        **Questions Asked:** {current_summary['question_count']}  
+        **Started:** {current_summary['last_activity'] if current_summary['question_count'] > 0 else 'Just now'}
+        """)
+        
+        # Session actions
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if st.button("🆕 New Session", use_container_width=True):
+                # Save current sessions before creating new one
+                save_sessions_to_disk(st.session_state.agent)
+                
+                # Create new session
+                st.session_state.session_id = hashlib.md5(str(datetime.now()).encode()).hexdigest()[:8]
+                st.session_state.conversation_history = []
+                st.success("New session created!")
+                st.rerun()
+        
+        with col2:
+            if st.button("💾 Save Sessions", use_container_width=True):
+                save_sessions_to_disk(st.session_state.agent)
+                st.success("Sessions saved!")
+        
+        # Previous Sessions
+        if len(st.session_state.agent.memory_store) > 1:
+            st.subheader("📋 Previous Sessions")
+            
+            # Sort sessions by last activity
+            sessions = []
+            for session_id, memory in st.session_state.agent.memory_store.items():
+                if session_id != st.session_state.session_id and memory.turns:
+                    summary = get_session_summary(memory)
+                    sessions.append((session_id, memory, summary))
+            
+            # Sort by last activity (most recent first)
+            sessions.sort(key=lambda x: x[2]['last_activity'], reverse=True)
+            
+            for session_id, memory, summary in sessions[:5]:  # Show last 5 sessions
+                with st.expander(f"📄 {summary['title'][:30]}...", expanded=False):
+                    st.write(f"**Session ID:** `{session_id}`")
+                    st.write(f"**Last Activity:** {summary['last_activity']}")
+                    st.write(f"**Questions:** {summary['question_count']}")
+                    st.write(f"**Preview:** {summary['preview']}")
+                    
+                    col_a, col_b = st.columns(2)
+                    with col_a:
+                        if st.button(f"🔄 Switch to Session", key=f"switch_{session_id}"):
+                            # Save current conversation history for current session
+                            if st.session_state.session_id in st.session_state.agent.memory_store:
+                                current_mem = st.session_state.agent.memory_store[st.session_state.session_id]
+                                # Update conversation history display for UI
+                                st.session_state.conversation_history = [
+                                    (turn.user_query, turn.ai_response, turn.timestamp)
+                                    for turn in current_mem.turns
+                                ]
+                            
+                            # Switch to selected session
+                            st.session_state.session_id = session_id
+                            
+                            # Load conversation history for UI display
+                            selected_memory = st.session_state.agent.memory_store[session_id]
+                            st.session_state.conversation_history = [
+                                (turn.user_query, turn.ai_response, turn.timestamp)
+                                for turn in selected_memory.turns
+                            ]
+                            
+                            st.success(f"Switched to session {session_id}")
+                            st.rerun()
+                    
+                    with col_b:
+                        if st.button(f"🗑️ Delete", key=f"delete_{session_id}"):
+                            del st.session_state.agent.memory_store[session_id]
+                            save_sessions_to_disk(st.session_state.agent)
+                            st.success(f"Session {session_id} deleted")
+                            st.rerun()
+        
+        st.divider()
+        
+        # Advanced session operations
+        with st.expander("🔧 Advanced Options"):
+            if st.button("🗑️ Clear All Sessions"):
+                st.session_state.agent.memory_store = {}
+                st.session_state.conversation_history = []
+                st.session_state.session_id = hashlib.md5(str(datetime.now()).encode()).hexdigest()[:8]
+                save_sessions_to_disk(st.session_state.agent)
+                st.success("All sessions cleared!")
+                st.rerun()
+            
+            # Export Sessions
+            if st.button("📤 Export Sessions"):
+                save_sessions_to_disk(st.session_state.agent, "exported_sessions.json")
+                with open("exported_sessions.json", "rb") as f:
+                    st.download_button(
+                        "Download Sessions",
+                        f.read(),
+                        "exported_sessions.json",
+                        "application/json"
+                    )
+            
+            # Import Sessions
+            uploaded_sessions = st.file_uploader("📥 Import Sessions", type=["json"])
+            if uploaded_sessions is not None:
+                try:
+                    sessions_data = json.loads(uploaded_sessions.read())
+                    # Load the imported sessions
+                    for session_id, session_info in sessions_data.items():
+                        memory = ConversationMemory(
+                            session_id=session_id,
+                            turns=[],
+                            current_context=session_info.get("current_context", {}),
+                            entity_references=session_info.get("entity_references", {}),
+                            active_filters=session_info.get("active_filters", {}),
+                            last_query_results=None,
+                            conversation_summary=session_info.get("conversation_summary", "")
+                        )
+                        
+                        for turn_data in session_info.get("turns", []):
+                            turn = ConversationTurn(
+                                timestamp=datetime.fromisoformat(turn_data["timestamp"]),
+                                user_query=turn_data["user_query"],
+                                query_type=QueryType(turn_data["query_type"]),
+                                sql_generated=turn_data.get("sql_generated"),
+                                results=None,
+                                ai_response=turn_data["ai_response"],
+                                context_used=[],
+                                entities_mentioned=turn_data.get("entities_mentioned", []),
+                                follow_up_suggestions=turn_data.get("follow_up_suggestions", [])
+                            )
+                            memory.turns.append(turn)
+                        
+                        st.session_state.agent.memory_store[session_id] = memory
+                    
+                    save_sessions_to_disk(st.session_state.agent)
+                    st.success(f"Imported {len(sessions_data)} sessions!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error importing sessions: {e}")
+        
+        return db_path
+
+# Main function with enhanced session management
 def main():
     st.set_page_config(page_title="🏠 AI Property Management Assistant", layout="wide")
     
@@ -794,33 +1058,22 @@ def main():
     if 'conversation_history' not in st.session_state:
         st.session_state.conversation_history = []
     
-    # Sidebar
-    with st.sidebar:
-        st.header("🔧 Configuration")
-        
-        # Database upload
-        db_file = st.file_uploader("Upload SQLite Database", type=["db", "sqlite"])
-        if db_file:
-            db_path = "/tmp/uploaded.db"
-            with open(db_path, "wb") as f:
-                f.write(db_file.getbuffer())
-        else:
-            db_path = "database.db"
-        
-        # Memory controls
-        if st.button("🗑️ Clear Memory"):
-            if st.session_state.session_id in st.session_state.agent.memory_store:
-                del st.session_state.agent.memory_store[st.session_state.session_id]
-            st.session_state.conversation_history = []
-            st.rerun()
-        
-        if st.button("🆕 New Session"):
-            st.session_state.session_id = hashlib.md5(str(datetime.now()).encode()).hexdigest()[:8]
-            st.session_state.conversation_history = []
-            st.rerun()
+    # Enhanced sidebar with session management
+    db_path = enhanced_sidebar_with_sessions()
     
-    # Main interface - single column layout
+    # Auto-save sessions periodically
+    if len(st.session_state.agent.memory_store) > 0:
+        save_sessions_to_disk(st.session_state.agent)
+    
+    # Main interface
     st.header("💬 Conversation")
+    
+    # Display current session info
+    current_memory = st.session_state.agent.get_or_create_memory(st.session_state.session_id)
+    if current_memory.turns:
+        st.caption(f"Session: {st.session_state.session_id} | Questions: {len(current_memory.turns)} | Started: {current_memory.turns[0].timestamp.strftime('%Y-%m-%d %H:%M')}")
+    else:
+        st.caption(f"Session: {st.session_state.session_id} | New session")
     
     # Display conversation history
     if st.session_state.conversation_history:
