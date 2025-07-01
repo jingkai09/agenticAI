@@ -751,11 +751,18 @@ def main():
                         st.divider()
         
         # Query input
+        # Check if there's a suggested query to pre-fill
+        default_value = st.session_state.get('suggested_query', '')
+        if default_value:
+            # Clear the suggested query after using it
+            del st.session_state.suggested_query
+        
         query = st.text_area(
             "Ask your question:",
             placeholder="e.g., 'How many tenants do we have?' then follow up with 'Who are they?'",
             height=100,
-            key="query_input"
+            value=default_value,
+            key="current_query"
         )
         
 
@@ -860,9 +867,11 @@ def main():
                 if result.get("follow_up_suggestions"):
                     st.subheader("🎯 Suggested Follow-up Questions")
                     for i, suggestion in enumerate(result["follow_up_suggestions"]):
-                        if st.button(f"🔹 {suggestion}", key=f"suggestion_{i}"):
-                            # Auto-fill the suggestion
-                            st.session_state.query_input = suggestion
+                        # Create a unique key for each suggestion button
+                        suggestion_key = f"suggestion_{st.session_state.session_id}_{i}_{len(st.session_state.conversation_history)}"
+                        if st.button(f"🔹 {suggestion}", key=suggestion_key):
+                            # Set the suggestion in session state and rerun to update the text area
+                            st.session_state.suggested_query = suggestion
                             st.rerun()
             
             else:
