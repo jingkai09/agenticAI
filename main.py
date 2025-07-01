@@ -559,34 +559,55 @@ class PropertyManagementAgent:
                                     memory: ConversationMemory, domain_context: List[str]) -> str:
         """Generate insights considering conversation history"""
         
+        if df is None or df.empty:
+            return "No data was returned from your query. You might want to check if the data exists in your database or try a different search criteria."
+        
         conversation_summary = ""
         if len(memory.turns) > 1:
             recent_queries = [turn.user_query for turn in memory.turns[-3:]]
             conversation_summary = f"Recent conversation: {' → '.join(recent_queries)}"
         
+        # Create a more detailed data summary
+        data_summary = ""
+        if len(df) > 0:
+            data_summary = f"""
+            Total records found: {len(df)}
+            Columns: {', '.join(df.columns.tolist())}
+            Sample records: {df.head(3).to_dict('records') if len(df) > 0 else 'None'}
+            """
+            
+            # Add numeric summaries if available
+            numeric_cols = df.select_dtypes(include=[np.number]).columns
+            if len(numeric_cols) > 0:
+                data_summary += f"\nNumeric data summary: "
+                for col in numeric_cols[:2]:  # Limit to first 2 numeric columns
+                    data_summary += f"{col}: avg={df[col].mean():.2f}, min={df[col].min()}, max={df[col].max()}; "
+        
         insight_prompt = f"""
-        Current query: {query}
-        SQL: {sql}
-        Results: {len(df) if df is not None else 0} rows
-        Sample data: {df.head(3).to_dict() if df is not None and not df.empty else 'No results'}
+        You are analyzing property management data. Based on the query results, provide practical business insights.
+        
+        User asked: "{query}"
+        
+        Data Analysis:
+        {data_summary}
         
         {conversation_summary}
-        Domain context: {' '.join(domain_context[:1])}
         
-        Provide contextual business insights that:
-        1. Address the current query
-        2. Connect to previous conversation if relevant
-        3. Suggest actionable next steps
-        4. Highlight any patterns or concerns
+        Please provide insights that include:
+        1. What this data tells us about the business
+        2. Any notable patterns or trends
+        3. Actionable recommendations for property management
+        4. Potential areas of concern or opportunity
+        5. How this relates to property management best practices
         
-        Keep it conversational and practical.
+        Be specific and practical. Avoid just describing the data - provide business value and recommendations.
         """
         
         try:
             response = self.model.generate_content(insight_prompt)
             return response.text
-        except:
-            return "Unable to generate insights at this time."
+        except Exception as e:
+            return f"I found {len(df)} records matching your query. While I couldn't generate detailed insights due to a technical issue, you can review the data above and consider how it relates to your property management operations."
     
     def _generate_followup_suggestions(self, df: pd.DataFrame, query: str) -> List[str]:
         """Generate intelligent follow-up suggestions based on results"""
@@ -852,7 +873,12 @@ def main():
                 # Show insights
                 if result.get("insights"):
                     st.subheader("💡 AI Insights")
-                    st.markdown(result["insights"])
+                    # Make sure we're not showing SQL in insights
+                    insights_text = result["insights"]
+                    if insights_text and not insights_text.startswith("SELECT"):
+                        st.markdown(insights_text)
+                    else:
+                        st.warning("Insights generation is in progress. The data above shows your query results.")
             
             elif result["type"] == "general_query":
                 st.subheader("💬 AI Response")
