@@ -735,11 +735,8 @@ def main():
             st.session_state.conversation_history = []
             st.rerun()
     
-    # Main interface
-    col1, col2 = st.columns([2, 1])
-    
-    with col1:
-        st.header("💬 Conversation")
+    # Main interface - single column layout
+    st.header("💬 Conversation")
         
         # Display conversation history
         if st.session_state.conversation_history:
