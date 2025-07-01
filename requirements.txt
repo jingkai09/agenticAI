@@ -1,3 +1,14 @@
+# Core dependencies
 streamlit
 pandas
 google-generativeai
+
+# Enhanced AI and Memory capabilities
+sentence-transformers
+faiss-cpu
+langchain
+numpy
+
+# Additional utilities for enhanced functionality
+python-dateutil
+pytz
