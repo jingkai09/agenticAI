@@ -20,9 +20,16 @@ import numpy as np
 import faiss
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.schema import Document
-import plotly.express as px
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
+# Optional imports for enhanced visualizations
+try:
+    import plotly.express as px
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+    PLOTLY_AVAILABLE = True
+except ImportError:
+    PLOTLY_AVAILABLE = False
+    px = None
+    go = None
 
 # Configure Gemini API
 api_key = st.secrets["gemini_key"]
@@ -636,7 +643,8 @@ class PropertyManagementAgent:
                     "type": "bar",
                     "x": categorical_cols[0],
                     "y": numeric_cols[0],
-                    "title": f"{numeric_cols[0]} by {categorical_cols[0]}"
+                    "title": f"{numeric_cols[0]} by {categorical_cols[0]}",
+                    "data": df
                 }
         
         elif 'status' in df.columns:
@@ -655,7 +663,8 @@ class PropertyManagementAgent:
                 "type": "scatter",
                 "x": numeric_cols[0],
                 "y": numeric_cols[1],
-                "title": f"{numeric_cols[1]} vs {numeric_cols[0]}"
+                "title": f"{numeric_cols[1]} vs {numeric_cols[0]}",
+                "data": df
             }
         
         return viz_config if viz_config else None
@@ -984,7 +993,8 @@ class PropertyManagementAgent:
                 "type": "line",
                 "x": date_cols[0],
                 "y": numeric_cols[0],
-                "title": f"{numeric_cols[0]} Trend Over Time"
+                "title": f"{numeric_cols[0]} Trend Over Time",
+                "data": df
             }
         
         return None
