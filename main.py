@@ -21,7 +21,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.schema import Document
 
 # Configure Gemini API
-api_key = st.secrets["gemini_key"]
+api_key = st.secrets["gemini_api"]
 genai.configure(api_key=api_key)
 
 class QueryType(Enum):
@@ -723,25 +723,6 @@ def main():
         else:
             db_path = "database.db"
         
-        st.header("🧠 Memory & Context")
-        
-        # Session info
-        st.info(f"**Session ID:** `{st.session_state.session_id}`")
-        
-        # Conversation summary
-        memory = st.session_state.agent.get_or_create_memory(st.session_state.session_id)
-        if memory.turns:
-            st.write(f"**Conversation Turns:** {len(memory.turns)}")
-            
-            # Show recent context
-            with st.expander("Recent Context"):
-                for turn in memory.turns[-3:]:
-                    st.write(f"🔹 {turn.user_query[:60]}...")
-                    if turn.results is not None and hasattr(turn.results, 'shape'):
-                        st.write(f"   📊 Results: {turn.results.shape[0]} rows")
-        else:
-            st.write("**No conversation history yet**")
-        
         # Memory controls
         if st.button("🗑️ Clear Memory"):
             if st.session_state.session_id in st.session_state.agent.memory_store:
@@ -753,28 +734,6 @@ def main():
             st.session_state.session_id = hashlib.md5(str(datetime.now()).encode()).hexdigest()[:8]
             st.session_state.conversation_history = []
             st.rerun()
-        
-        # Agent capabilities
-        st.header("🤖 AI Capabilities")
-        st.info("""
-        **Memory Features:**
-        - Remembers previous queries
-        - Resolves pronouns (they, them, it)
-        - Tracks context across turns
-        - Suggests follow-up questions
-        
-        **Smart Processing:**
-        - Natural language to SQL
-        - Context-aware responses
-        - Entity extraction & tracking
-        - Conversation continuity
-        
-        **Advanced Analytics:**
-        - Trend analysis
-        - Predictive insights
-        - Performance metrics
-        - Business recommendations
-        """)
     
     # Main interface
     col1, col2 = st.columns([2, 1])
