@@ -1078,6 +1078,52 @@ class PropertyManagementAgent:
             "memory_usage": sum(len(memory.turns) for memory in self.memory_store.values())
         }
 
+def render_visualization(viz_config: Dict[str, Any], use_plotly: bool = True):
+    """Render visualization using either Plotly or Streamlit native charts"""
+    if not viz_config:
+        return
+    
+    viz_type = viz_config["type"]
+    title = viz_config.get("title", "Chart")
+    
+    if PLOTLY_AVAILABLE and use_plotly:
+        # Use Plotly for enhanced visualizations
+        if viz_type == "bar":
+            fig = px.bar(viz_config["data"], x=viz_config["x"], y=viz_config["y"], title=title)
+            st.plotly_chart(fig, use_container_width=True)
+        elif viz_type == "pie":
+            fig = px.pie(values=viz_config["values"], names=viz_config["labels"], title=title)
+            st.plotly_chart(fig, use_container_width=True)
+        elif viz_type == "scatter":
+            fig = px.scatter(viz_config["data"], x=viz_config["x"], y=viz_config["y"], title=title)
+            st.plotly_chart(fig, use_container_width=True)
+        elif viz_type == "line":
+            fig = px.line(viz_config["data"], x=viz_config["x"], y=viz_config["y"], title=title)
+            st.plotly_chart(fig, use_container_width=True)
+    else:
+        # Fallback to Streamlit native charts
+        st.subheader(title)
+        
+        if viz_type == "bar":
+            df = viz_config["data"]
+            chart_data = df.set_index(viz_config["x"])[viz_config["y"]]
+            st.bar_chart(chart_data)
+        elif viz_type == "pie":
+            # Create a simple representation for pie chart
+            pie_data = pd.DataFrame({
+                'Category': viz_config["labels"],
+                'Value': viz_config["values"]
+            })
+            st.bar_chart(pie_data.set_index('Category')['Value'])
+            st.caption("📊 Showing as bar chart (pie chart requires Plotly)")
+        elif viz_type == "scatter":
+            df = viz_config["data"]
+            st.scatter_chart(df, x=viz_config["x"], y=viz_config["y"])
+        elif viz_type == "line":
+            df = viz_config["data"]
+            chart_data = df.set_index(viz_config["x"])[viz_config["y"]]
+            st.line_chart(chart_data)
+
 # Enhanced Streamlit UI with Advanced Features
 def main():
     st.set_page_config(
@@ -1152,23 +1198,28 @@ def main():
             st.warning("⚠️ Using default database")
         
         # Analytics Dashboard
-        if st.session_state.agent:
-            analytics = st.session_state.agent.get_analytics_dashboard()
-            st.subheader("📊 AI Analytics")
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                st.metric("Total Queries", analytics['total_queries'])
-                st.metric("Success Rate", f"{analytics['success_rate']:.1f}%")
-            with col2:
-                st.metric("Avg Response", f"{analytics['avg_response_time']:.2f}s")
-                st.metric("Active Sessions", analytics['active_sessions'])
-            
-            # Query type distribution
-            if analytics['query_types']:
-                st.subheader("🔍 Query Types")
-                for qtype, count in analytics['query_types'].items():
-                    st.write(f"• {qtype.replace('_', ' ').title()}: {count}")
+        if hasattr(st.session_state, 'agent') and st.session_state.agent:
+            try:
+                analytics = st.session_state.agent.get_analytics_dashboard()
+                st.subheader("📊 AI Analytics")
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("Total Queries", analytics['total_queries'])
+                    st.metric("Success Rate", f"{analytics['success_rate']:.1f}%")
+                with col2:
+                    st.metric("Avg Response", f"{analytics['avg_response_time']:.2f}s")
+                    st.metric("Active Sessions", analytics['active_sessions'])
+                
+                # Query type distribution
+                if analytics['query_types']:
+                    st.subheader("🔍 Query Types")
+                    for qtype, count in analytics['query_types'].items():
+                        st.write(f"• {qtype.replace('_', ' ').title()}: {count}")
+            except Exception as e:
+                st.warning("📊 Analytics loading... Please wait.")
+        else:
+            st.info("🤖 AI Agent initializing...")
         
         st.divider()
         
@@ -1176,13 +1227,16 @@ def main():
         col1, col2 = st.columns(2)
         with col1:
             if st.button("🗑️ Clear Memory", use_container_width=True):
-                if st.session_state.session_id in st.session_state.agent.memory_store:
-                    del st.session_state.agent.memory_store[st.session_state.session_id]
-                st.session_state.conversation_history = []
-                st.session_state.current_query = ""
-                st.success("Memory cleared!")
-                time.sleep(1)
-                st.rerun()
+                try:
+                    if hasattr(st.session_state, 'agent') and st.session_state.agent and st.session_state.session_id in st.session_state.agent.memory_store:
+                        del st.session_state.agent.memory_store[st.session_state.session_id]
+                    st.session_state.conversation_history = []
+                    st.session_state.current_query = ""
+                    st.success("Memory cleared!")
+                    time.sleep(1)
+                    st.rerun()
+                except Exception as e:
+                    st.error("Error clearing memory")
         
         with col2:
             if st.button("🆕 New Session", use_container_width=True):
@@ -1261,18 +1315,27 @@ def main():
         
         # Process query with enhanced UI
         if process_btn and query:
+            if not hasattr(st.session_state, 'agent') or not st.session_state.agent:
+                st.error("🤖 AI Agent not initialized. Please refresh the page.")
+                return
+                
             with st.spinner("🤔 AI is thinking..."):
                 progress_bar = st.progress(0)
                 for i in range(100):
                     progress_bar.progress(i + 1)
                     time.sleep(0.01)
                 
-                result = st.session_state.agent.process_query(
-                    query, 
-                    db_path, 
-                    st.session_state.session_id
-                )
-                progress_bar.empty()
+                try:
+                    result = st.session_state.agent.process_query(
+                        query, 
+                        db_path, 
+                        st.session_state.session_id
+                    )
+                    progress_bar.empty()
+                except Exception as e:
+                    progress_bar.empty()
+                    st.error(f"❌ Error processing query: {str(e)}")
+                    return
             
             # Add to conversation history with execution time
             timestamp = datetime.now()
@@ -1333,20 +1396,7 @@ def main():
                         # Visualization
                         if result.get("visualization"):
                             st.subheader("📈 Data Visualization")
-                            viz_config = result["visualization"]
-                            
-                            if viz_config["type"] == "bar":
-                                fig = px.bar(df, x=viz_config["x"], y=viz_config["y"], title=viz_config["title"])
-                                st.plotly_chart(fig, use_container_width=True)
-                            elif viz_config["type"] == "pie":
-                                fig = px.pie(values=viz_config["values"], names=viz_config["labels"], title=viz_config["title"])
-                                st.plotly_chart(fig, use_container_width=True)
-                            elif viz_config["type"] == "scatter":
-                                fig = px.scatter(df, x=viz_config["x"], y=viz_config["y"], title=viz_config["title"])
-                                st.plotly_chart(fig, use_container_width=True)
-                            elif viz_config["type"] == "line":
-                                fig = px.line(df, x=viz_config["x"], y=viz_config["y"], title=viz_config["title"])
-                                st.plotly_chart(fig, use_container_width=True)
+                            render_visualization(result["visualization"])
                         
                         # Download options
                         col_dl1, col_dl2, col_dl3 = st.columns(3)
@@ -1370,18 +1420,21 @@ def main():
                             )
                         with col_dl3:
                             # Create Excel file in memory
-                            import io
-                            excel_buffer = io.BytesIO()
-                            with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
-                                df.to_excel(writer, sheet_name='Results', index=False)
-                            excel_data = excel_buffer.getvalue()
-                            st.download_button(
-                                "📊 Download Excel",
-                                excel_data,
-                                f"results_{timestamp.strftime('%Y%m%d_%H%M%S')}.xlsx",
-                                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                                use_container_width=True
-                            )
+                            try:
+                                import io
+                                excel_buffer = io.BytesIO()
+                                with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
+                                    df.to_excel(writer, sheet_name='Results', index=False)
+                                excel_data = excel_buffer.getvalue()
+                                st.download_button(
+                                    "📊 Download Excel",
+                                    excel_data,
+                                    f"results_{timestamp.strftime('%Y%m%d_%H%M%S')}.xlsx",
+                                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                    use_container_width=True
+                                )
+                            except ImportError:
+                                st.info("📊 Excel export requires openpyxl")
                     else:
                         st.warning("⚠️ No results found for your query.")
                         st.info("💡 Try adjusting your search criteria or ask a different question.")
@@ -1395,10 +1448,7 @@ def main():
                     st.subheader("📈 Trend Analysis")
                     
                     if result.get("visualization"):
-                        viz_config = result["visualization"]
-                        fig = px.line(result["results"], x=viz_config["x"], y=viz_config["y"], title=viz_config["title"])
-                        fig.update_layout(showlegend=True, hovermode='x unified')
-                        st.plotly_chart(fig, use_container_width=True)
+                        render_visualization(result["visualization"])
                     
                     if result.get("insights"):
                         st.markdown(result["insights"])
@@ -1448,8 +1498,18 @@ def main():
     with col2:
         st.header("📊 Dashboard")
         
+        # Check if agent is initialized
+        if not hasattr(st.session_state, 'agent') or not st.session_state.agent:
+            st.warning("🤖 AI Agent initializing... Please wait.")
+            st.info("The dashboard will appear once the AI is ready.")
+            return
+        
         # Real-time status
-        memory = st.session_state.agent.get_or_create_memory(st.session_state.session_id)
+        try:
+            memory = st.session_state.agent.get_or_create_memory(st.session_state.session_id)
+        except Exception as e:
+            st.error("Error accessing memory. Please refresh the page.")
+            return
         
         # Session stats
         st.subheader("📈 Session Statistics")
@@ -1460,16 +1520,29 @@ def main():
             st.metric("🧠 Memory Items", len(memory.turns) * 3)  # Approximate
         
         # Query type pie chart
-        if st.session_state.agent.analytics['query_types']:
-            st.subheader("🔍 Query Distribution")
-            query_data = st.session_state.agent.analytics['query_types']
-            fig_pie = px.pie(
-                values=list(query_data.values()),
-                names=[name.replace('_', ' ').title() for name in query_data.keys()],
-                title="Query Types Distribution"
-            )
-            fig_pie.update_traces(textposition='inside', textinfo='percent+label')
-            st.plotly_chart(fig_pie, use_container_width=True)
+        try:
+            if st.session_state.agent.analytics['query_types']:
+                st.subheader("🔍 Query Distribution")
+                query_data = st.session_state.agent.analytics['query_types']
+                
+                if PLOTLY_AVAILABLE:
+                    fig_pie = px.pie(
+                        values=list(query_data.values()),
+                        names=[name.replace('_', ' ').title() for name in query_data.keys()],
+                        title="Query Types Distribution"
+                    )
+                    fig_pie.update_traces(textposition='inside', textinfo='percent+label')
+                    st.plotly_chart(fig_pie, use_container_width=True)
+                else:
+                    # Fallback to bar chart
+                    chart_df = pd.DataFrame({
+                        'Query Type': [name.replace('_', ' ').title() for name in query_data.keys()],
+                        'Count': list(query_data.values())
+                    })
+                    st.bar_chart(chart_df.set_index('Query Type')['Count'])
+                    st.caption("📊 Query distribution (pie chart requires Plotly)")
+        except Exception as e:
+            st.info("📊 Query distribution will appear after first query")
         
         # Recent activity
         st.subheader("⏰ Recent Activity")
@@ -1484,47 +1557,61 @@ def main():
         
         # System health
         st.subheader("🔋 System Health")
-        analytics = st.session_state.agent.get_analytics_dashboard()
-        
-        # Success rate indicator
-        success_rate = analytics['success_rate']
-        if success_rate >= 90:
-            st.success(f"✅ Excellent: {success_rate:.1f}% success rate")
-        elif success_rate >= 70:
-            st.warning(f"⚠️ Good: {success_rate:.1f}% success rate")
-        else:
-            st.error(f"❌ Needs attention: {success_rate:.1f}% success rate")
-        
-        # Performance metrics
-        avg_time = analytics['avg_response_time']
-        if avg_time < 2:
-            st.success(f"⚡ Fast: {avg_time:.2f}s avg response")
-        elif avg_time < 5:
-            st.warning(f"🐌 Moderate: {avg_time:.2f}s avg response")
-        else:
-            st.error(f"🚨 Slow: {avg_time:.2f}s avg response")
-        
-        # Memory usage
-        memory_usage = analytics['memory_usage']
-        memory_health = "🟢 Optimal" if memory_usage < 100 else "🟡 High" if memory_usage < 200 else "🔴 Critical"
-        st.info(f"💾 Memory: {memory_health} ({memory_usage} items)")
+        try:
+            analytics = st.session_state.agent.get_analytics_dashboard()
+            
+            # Success rate indicator
+            success_rate = analytics['success_rate']
+            if success_rate >= 90:
+                st.success(f"✅ Excellent: {success_rate:.1f}% success rate")
+            elif success_rate >= 70:
+                st.warning(f"⚠️ Good: {success_rate:.1f}% success rate")
+            else:
+                st.error(f"❌ Needs attention: {success_rate:.1f}% success rate")
+            
+            # Performance metrics
+            avg_time = analytics['avg_response_time']
+            if avg_time < 2:
+                st.success(f"⚡ Fast: {avg_time:.2f}s avg response")
+            elif avg_time < 5:
+                st.warning(f"🐌 Moderate: {avg_time:.2f}s avg response")
+            else:
+                st.error(f"🚨 Slow: {avg_time:.2f}s avg response")
+            
+            # Memory usage
+            memory_usage = analytics['memory_usage']
+            memory_health = "🟢 Optimal" if memory_usage < 100 else "🟡 High" if memory_usage < 200 else "🔴 Critical"
+            st.info(f"💾 Memory: {memory_health} ({memory_usage} items)")
+            
+        except Exception as e:
+            st.info("🔋 System health will be available after first query")
         
         # AI recommendations
         st.subheader("🤖 AI Recommendations")
         recommendations = []
         
-        if len(memory.turns) == 0:
-            recommendations.append("🎯 Start with: 'How many tenants do we have?'")
-        elif len(memory.turns) < 5:
-            recommendations.append("📈 Try asking about trends and analytics")
-        else:
-            recommendations.append("🔍 Explore advanced queries and filters")
-        
-        if analytics['success_rate'] < 80:
-            recommendations.append("💡 Check database connectivity")
-        
-        if analytics['avg_response_time'] > 3:
-            recommendations.append("⚡ Consider optimizing database queries")
+        try:
+            analytics = st.session_state.agent.get_analytics_dashboard()
+            
+            if len(memory.turns) == 0:
+                recommendations.append("🎯 Start with: 'How many tenants do we have?'")
+            elif len(memory.turns) < 5:
+                recommendations.append("📈 Try asking about trends and analytics")
+            else:
+                recommendations.append("🔍 Explore advanced queries and filters")
+            
+            if analytics['success_rate'] < 80:
+                recommendations.append("💡 Check database connectivity")
+            
+            if analytics['avg_response_time'] > 3:
+                recommendations.append("⚡ Consider optimizing database queries")
+                
+        except Exception as e:
+            recommendations = [
+                "🎯 Start with: 'How many tenants do we have?'",
+                "📈 Try asking about trends and analytics",
+                "🔍 Explore advanced queries and filters"
+            ]
         
         for rec in recommendations:
             st.info(rec)
@@ -1545,27 +1632,31 @@ def main():
         
         # Export conversation
         if st.button("📤 Export Session", use_container_width=True):
-            session_data = {
-                "session_id": st.session_state.session_id,
-                "timestamp": datetime.now().isoformat(),
-                "conversation_history": [
-                    {
-                        "query": item[0],
-                        "response": item[1],
-                        "timestamp": item[2].isoformat(),
-                        "execution_time": item[3]
-                    } for item in st.session_state.conversation_history
-                ],
-                "analytics": analytics
-            }
-            
-            json_data = json.dumps(session_data, indent=2)
-            st.download_button(
-                "📋 Download Session JSON",
-                json_data,
-                f"session_{st.session_state.session_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
-                "application/json"
-            )
+            try:
+                analytics = st.session_state.agent.get_analytics_dashboard()
+                session_data = {
+                    "session_id": st.session_state.session_id,
+                    "timestamp": datetime.now().isoformat(),
+                    "conversation_history": [
+                        {
+                            "query": item[0],
+                            "response": item[1],
+                            "timestamp": item[2].isoformat(),
+                            "execution_time": item[3]
+                        } for item in st.session_state.conversation_history
+                    ],
+                    "analytics": analytics
+                }
+                
+                json_data = json.dumps(session_data, indent=2)
+                st.download_button(
+                    "📋 Download Session JSON",
+                    json_data,
+                    f"session_{st.session_state.session_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                    "application/json"
+                )
+            except Exception as e:
+                st.error("Error exporting session data")
 
 if __name__ == "__main__":
     main()
