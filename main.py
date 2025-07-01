@@ -794,6 +794,10 @@ def main():
     if 'conversation_history' not in st.session_state:
         st.session_state.conversation_history = []
     
+    # Initialize counter for text area regeneration
+    if 'text_area_key' not in st.session_state:
+        st.session_state.text_area_key = 0
+    
     # Sidebar
     with st.sidebar:
         st.header("🔧 Configuration")
@@ -812,11 +816,13 @@ def main():
             if st.session_state.session_id in st.session_state.agent.memory_store:
                 del st.session_state.agent.memory_store[st.session_state.session_id]
             st.session_state.conversation_history = []
+            st.session_state.text_area_key += 1  # Force text area to regenerate
             st.rerun()
         
         if st.button("🆕 New Session"):
             st.session_state.session_id = hashlib.md5(str(datetime.now()).encode()).hexdigest()[:8]
             st.session_state.conversation_history = []
+            st.session_state.text_area_key += 1  # Force text area to regenerate
             st.rerun()
     
     # Main interface - single column layout
@@ -836,15 +842,17 @@ def main():
     default_value = ""
     if 'suggested_query' in st.session_state:
         default_value = st.session_state.suggested_query
-        # Clear the suggested query after using it to avoid it persisting
+        # Clear the suggested query after using it
         del st.session_state.suggested_query
+        # Increment the key to force recreation of the text area
+        st.session_state.text_area_key += 1
     
     query = st.text_area(
         "Ask your question:",
         placeholder="e.g., 'How many tenants do we have?' then follow up with 'Who are they?'",
         height=100,
         value=default_value,
-        key=f"current_query_{st.session_state.session_id}"  # Make key unique per session
+        key=f"query_input_{st.session_state.text_area_key}"  # Use incrementing key
     )
     
     # Process query
@@ -953,8 +961,8 @@ def main():
                 st.subheader("🎯 Suggested Follow-up Questions")
                 cols = st.columns(2)  # Create 2 columns for better layout
                 for i, suggestion in enumerate(result["follow_up_suggestions"]):
-                    # Create a unique key for each suggestion button
-                    suggestion_key = f"suggestion_{st.session_state.session_id}_{i}_{len(st.session_state.conversation_history)}_{hash(suggestion)}"
+                    # Create a unique key for each suggestion button using current timestamp
+                    suggestion_key = f"suggestion_{st.session_state.session_id}_{i}_{len(st.session_state.conversation_history)}_{hash(suggestion)}_{timestamp.strftime('%H%M%S%f')}"
                     
                     # Alternate between columns
                     with cols[i % 2]:
