@@ -21,7 +21,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.schema import Document
 
 # Configure Gemini API
-api_key = st.secrets["gemini_key"]
+api_key = st.secrets["gemini_api"]
 genai.configure(api_key=api_key)
 
 class QueryType(Enum):
@@ -737,232 +737,142 @@ def main():
     
     # Main interface - single column layout
     st.header("💬 Conversation")
+    
+    # Display conversation history
+    if st.session_state.conversation_history:
+        with st.expander("📜 Conversation History", expanded=False):
+            for i, (user_msg, ai_response, timestamp) in enumerate(st.session_state.conversation_history):
+                st.write(f"**{timestamp.strftime('%H:%M:%S')} - You:** {user_msg}")
+                st.write(f"**AI:** {ai_response[:200]}...")
+                if i < len(st.session_state.conversation_history) - 1:
+                    st.divider()
+    
+    # Query input
+    # Check if there's a suggested query to pre-fill
+    default_value = st.session_state.get('suggested_query', '')
+    if default_value:
+        # Clear the suggested query after using it
+        del st.session_state.suggested_query
+    
+    query = st.text_area(
+        "Ask your question:",
+        placeholder="e.g., 'How many tenants do we have?' then follow up with 'Who are they?'",
+        height=100,
+        value=default_value,
+        key="current_query"
+    )
+    
+    # Process query
+    if st.button("🚀 Ask Question", type="primary", use_container_width=True) and query:
+        with st.spinner("🤔 Processing your question..."):
+            result = st.session_state.agent.process_query(
+                query, 
+                db_path, 
+                st.session_state.session_id
+            )
         
-        # Display conversation history
-        if st.session_state.conversation_history:
-            with st.expander("📜 Conversation History", expanded=False):
-                for i, (user_msg, ai_response, timestamp) in enumerate(st.session_state.conversation_history):
-                    st.write(f"**{timestamp.strftime('%H:%M:%S')} - You:** {user_msg}")
-                    st.write(f"**AI:** {ai_response[:200]}...")
-                    if i < len(st.session_state.conversation_history) - 1:
-                        st.divider()
+        # Add to conversation history
+        timestamp = datetime.now()
+        ai_response = result.get('response', result.get('insights', 'Processed successfully'))
+        st.session_state.conversation_history.append((query, ai_response, timestamp))
         
-        # Query input
-        # Check if there's a suggested query to pre-fill
-        default_value = st.session_state.get('suggested_query', '')
-        if default_value:
-            # Clear the suggested query after using it
-            del st.session_state.suggested_query
-        
-        query = st.text_area(
-            "Ask your question:",
-            placeholder="e.g., 'How many tenants do we have?' then follow up with 'Who are they?'",
-            height=100,
-            value=default_value,
-            key="current_query"
-        )
-        
-
-        
-        # Process query
-        if st.button("🚀 Ask Question", type="primary", use_container_width=True) and query:
-            with st.spinner("🤔 Processing your question..."):
-                result = st.session_state.agent.process_query(
-                    query, 
-                    db_path, 
-                    st.session_state.session_id
-                )
+        # Display results based on type
+        if result["success"]:
             
-            # Add to conversation history
-            timestamp = datetime.now()
-            ai_response = result.get('response', result.get('insights', 'Processed successfully'))
-            st.session_state.conversation_history.append((query, ai_response, timestamp))
+            # Show context awareness
+            if result.get("context_connection"):
+                st.info(f"🔗 {result['context_connection']}")
             
-            # Display results based on type
-            if result["success"]:
+            if result["type"] == "followup_question":
+                st.subheader("🔄 Follow-up Response")
                 
-                # Show context awareness
-                if result.get("context_connection"):
-                    st.info(f"🔗 {result['context_connection']}")
+                # Show how the question was resolved
+                memory = st.session_state.agent.get_or_create_memory(st.session_state.session_id)
+                if len(memory.turns) >= 2:
+                    prev_turn = memory.turns[-2]
+                    st.success(f"💡 **Connected to previous query:** {prev_turn.user_query}")
                 
-                if result["type"] == "followup_question":
-                    st.subheader("🔄 Follow-up Response")
-                    
-                    # Show how the question was resolved
-                    memory = st.session_state.agent.get_or_create_memory(st.session_state.session_id)
-                    if len(memory.turns) >= 2:
-                        prev_turn = memory.turns[-2]
-                        st.success(f"💡 **Connected to previous query:** {prev_turn.user_query}")
-                    
-                    # Show SQL if generated
-                    if result.get("sql"):
-                        with st.expander("🔍 Generated SQL"):
-                            st.code(result["sql"], language="sql")
-                    
-                    # Show results
-                    if result.get("results") is not None and not result["results"].empty:
-                        st.dataframe(result["results"], use_container_width=True)
-                        
-                        # Download option
-                        csv = result["results"].to_csv(index=False)
-                        st.download_button(
-                            "📥 Download Results",
-                            csv,
-                            f"followup_results_{timestamp.strftime('%H%M%S')}.csv",
-                            "text/csv"
-                        )
-                    
-                    # Show response
-                    st.markdown("**AI Response:**")
-                    st.write(result["response"])
-                
-                elif result["type"] == "sql_query":
-                    st.subheader("📊 Query Results")
-                    
-                    # Show SQL
+                # Show SQL if generated
+                if result.get("sql"):
                     with st.expander("🔍 Generated SQL"):
                         st.code(result["sql"], language="sql")
-                    
-                    # Show results
-                    if result.get("results") is not None and not result["results"].empty:
-                        st.dataframe(result["results"], use_container_width=True)
-                        
-                        # Quick stats
-                        col_a, col_b, col_c = st.columns(3)
-                        with col_a:
-                            st.metric("Rows", len(result["results"]))
-                        with col_b:
-                            st.metric("Columns", len(result["results"].columns))
-                        with col_c:
-                            if result["results"].select_dtypes(include=[np.number]).columns.any():
-                                numeric_cols = result["results"].select_dtypes(include=[np.number]).columns
-                                if len(numeric_cols) > 0:
-                                    avg_val = result["results"][numeric_cols[0]].mean()
-                                    st.metric(f"Avg {numeric_cols[0]}", f"{avg_val:.2f}")
-                        
-                        # Download option
-                        csv = result["results"].to_csv(index=False)
-                        st.download_button(
-                            "📥 Download Results",
-                            csv,
-                            f"query_results_{timestamp.strftime('%H%M%S')}.csv",
-                            "text/csv"
-                        )
-                    else:
-                        st.warning("No results found.")
-                    
-                    # Show insights
-                    if result.get("insights"):
-                        st.subheader("💡 AI Insights")
-                        st.markdown(result["insights"])
                 
-                elif result["type"] == "general_query":
-                    st.subheader("💬 AI Response")
-                    st.markdown(result["response"])
+                # Show results
+                if result.get("results") is not None and not result["results"].empty:
+                    st.dataframe(result["results"], use_container_width=True)
+                    
+                    # Download option
+                    csv = result["results"].to_csv(index=False)
+                    st.download_button(
+                        "📥 Download Results",
+                        csv,
+                        f"followup_results_{timestamp.strftime('%H%M%S')}.csv",
+                        "text/csv"
+                    )
                 
-                # Show follow-up suggestions
-                if result.get("follow_up_suggestions"):
-                    st.subheader("🎯 Suggested Follow-up Questions")
-                    for i, suggestion in enumerate(result["follow_up_suggestions"]):
-                        # Create a unique key for each suggestion button
-                        suggestion_key = f"suggestion_{st.session_state.session_id}_{i}_{len(st.session_state.conversation_history)}"
-                        if st.button(f"🔹 {suggestion}", key=suggestion_key):
-                            # Set the suggestion in session state and rerun to update the text area
-                            st.session_state.suggested_query = suggestion
-                            st.rerun()
+                # Show response
+                st.markdown("**AI Response:**")
+                st.write(result["response"])
             
-            else:
-                st.error(f"❌ Error: {result.get('error', 'Unknown error occurred')}")
-                if result.get("sql"):
+            elif result["type"] == "sql_query":
+                st.subheader("📊 Query Results")
+                
+                # Show SQL
+                with st.expander("🔍 Generated SQL"):
                     st.code(result["sql"], language="sql")
-    
-    with col2:
-        st.header("📈 Session Analytics")
-        
-        # Memory statistics
-        memory = st.session_state.agent.get_or_create_memory(st.session_state.session_id)
-        
-        if memory.turns:
-            # Query type distribution
-            query_types = [turn.query_type.value for turn in memory.turns]
-            type_counts = pd.Series(query_types).value_counts()
+                
+                # Show results
+                if result.get("results") is not None and not result["results"].empty:
+                    st.dataframe(result["results"], use_container_width=True)
+                    
+                    # Quick stats
+                    col_a, col_b, col_c = st.columns(3)
+                    with col_a:
+                        st.metric("Rows", len(result["results"]))
+                    with col_b:
+                        st.metric("Columns", len(result["results"].columns))
+                    with col_c:
+                        if result["results"].select_dtypes(include=[np.number]).columns.any():
+                            numeric_cols = result["results"].select_dtypes(include=[np.number]).columns
+                            if len(numeric_cols) > 0:
+                                avg_val = result["results"][numeric_cols[0]].mean()
+                                st.metric(f"Avg {numeric_cols[0]}", f"{avg_val:.2f}")
+                    
+                    # Download option
+                    csv = result["results"].to_csv(index=False)
+                    st.download_button(
+                        "📥 Download Results",
+                        csv,
+                        f"query_results_{timestamp.strftime('%H%M%S')}.csv",
+                        "text/csv"
+                    )
+                else:
+                    st.warning("No results found.")
+                
+                # Show insights
+                if result.get("insights"):
+                    st.subheader("💡 AI Insights")
+                    st.markdown(result["insights"])
             
-            st.subheader("🔍 Query Types")
-            for qtype, count in type_counts.items():
-                st.write(f"• {qtype.replace('_', ' ').title()}: {count}")
+            elif result["type"] == "general_query":
+                st.subheader("💬 AI Response")
+                st.markdown(result["response"])
             
-            # Recent entities
-            st.subheader("🏷️ Recent Entities")
-            recent_entities = []
-            for turn in memory.turns[-3:]:
-                recent_entities.extend(turn.entities_mentioned)
-            
-            if recent_entities:
-                unique_entities = list(set(recent_entities))[:5]
-                for entity in unique_entities:
-                    st.write(f"• {entity}")
-            else:
-                st.write("No entities detected yet")
-            
-            # Context tracking
-            st.subheader("🧭 Context Tracking")
-            if memory.last_query_results is not None:
-                st.success(f"✅ Last query returned {len(memory.last_query_results)} rows")
-                st.write("Ready for follow-up questions!")
-            else:
-                st.info("No previous results to reference")
+            # Show follow-up suggestions for ALL successful results
+            if result.get("follow_up_suggestions"):
+                st.subheader("🎯 Suggested Follow-up Questions")
+                for i, suggestion in enumerate(result["follow_up_suggestions"]):
+                    # Create a unique key for each suggestion button
+                    suggestion_key = f"suggestion_{st.session_state.session_id}_{i}_{len(st.session_state.conversation_history)}"
+                    if st.button(f"🔹 {suggestion}", key=suggestion_key):
+                        # Set the suggestion in session state and rerun to update the text area
+                        st.session_state.suggested_query = suggestion
+                        st.rerun()
         
         else:
-            st.info("Start asking questions to see analytics!")
-        
-        # Quick actions
-        st.subheader("⚡ Quick Actions")
-        
-        if st.button("📊 Show Database Overview"):
-            # Process the query directly instead of setting session state
-            with st.spinner("🤔 Processing quick action..."):
-                result = st.session_state.agent.process_query(
-                    "Give me an overview of the database with counts of tenants, properties, and units", 
-                    db_path, 
-                    st.session_state.session_id
-                )
-            st.success("✅ Database overview processed! Check the main area for results.")
-        
-        if st.button("🏠 Property Summary"):
-            with st.spinner("🤔 Processing quick action..."):
-                result = st.session_state.agent.process_query(
-                    "How many properties do we manage and what's the total unit count?", 
-                    db_path, 
-                    st.session_state.session_id
-                )
-            st.success("✅ Property summary processed! Check the main area for results.")
-        
-        if st.button("💰 Payment Status"):
-            with st.spinner("🤔 Processing quick action..."):
-                result = st.session_state.agent.process_query(
-                    "Show me the current payment status and any overdue amounts", 
-                    db_path, 
-                    st.session_state.session_id
-                )
-            st.success("✅ Payment status processed! Check the main area for results.")
-        
-        if st.button("🔧 Maintenance Overview"):
-            with st.spinner("🤔 Processing quick action..."):
-                result = st.session_state.agent.process_query(
-                    "What's the current status of maintenance tickets?", 
-                    db_path, 
-                    st.session_state.session_id
-                )
-            st.success("✅ Maintenance overview processed! Check the main area for results.")
-        
-        # Memory debugging (can be hidden in production)
-        with st.expander("🔬 Memory Debug Info"):
-            st.write(f"Documents in RAG: {len(st.session_state.rag_system.documents)}")
-            st.write(f"Conversation embeddings: {len(st.session_state.rag_system.conversation_embeddings)}")
-            if memory.turns:
-                last_turn = memory.turns[-1]
-                st.write(f"Last query type: {last_turn.query_type.value}")
-                st.write(f"Last entities: {last_turn.entities_mentioned}")
+            st.error(f"❌ Error: {result.get('error', 'Unknown error occurred')}")
+            if result.get("sql"):
+                st.code(result["sql"], language="sql")
 
 if __name__ == "__main__":
     main()
