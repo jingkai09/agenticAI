@@ -9,7 +9,7 @@ import pandas as pd
 import google.generativeai as genai    # <-- correct import
 
 # Configure your Gemini API key
-api_key = st.secrets["gemini_api"]
+api_key = st.secrets["gemini_key"]
 genai.configure(api_key=api_key)
 
 # 2) Define our system prompt
