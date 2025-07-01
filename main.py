@@ -758,31 +758,7 @@ def main():
             key="query_input"
         )
         
-        # Query examples with memory focus
-        with st.expander("💡 Example Memory-Aware Conversations"):
-            st.markdown("""
-            **Simple Follow-up Pattern:**
-            1. "How many tenants do we have?"
-            2. "Who are they?"
-            3. "Show me their contact information"
-            
-            **Complex Follow-up Pattern:**
-            1. "Which units are vacant?"
-            2. "How long have they been vacant?"
-            3. "What's the rent for those units?"
-            4. "Show me similar units that are occupied"
-            
-            **Contextual Analysis:**
-            1. "Show me overdue payments"
-            2. "Which tenants owe the most?"
-            3. "What's their payment history?"
-            4. "Send me their contact details"
-            
-            **Pronoun Resolution:**
-            - "Find expensive properties" → "Show me them"
-            - "List maintenance tickets" → "What type are they?"
-            - "Count active leases" → "When do they expire?"
-            """)
+
         
         # Process query
         if st.button("🚀 Ask Question", type="primary", use_container_width=True) and query:
