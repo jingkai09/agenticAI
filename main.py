@@ -770,9 +770,10 @@ def main():
     
     # Query input
     # Check if there's a suggested query to pre-fill
-    default_value = st.session_state.get('suggested_query', '')
-    if default_value:
-        # Clear the suggested query after using it
+    default_value = ""
+    if 'suggested_query' in st.session_state:
+        default_value = st.session_state.suggested_query
+        # Clear the suggested query after using it to avoid it persisting
         del st.session_state.suggested_query
     
     query = st.text_area(
@@ -780,7 +781,7 @@ def main():
         placeholder="e.g., 'How many tenants do we have?' then follow up with 'Who are they?'",
         height=100,
         value=default_value,
-        key="current_query"
+        key=f"current_query_{st.session_state.session_id}"  # Make key unique per session
     )
     
     # Process query
@@ -887,13 +888,17 @@ def main():
             # Show follow-up suggestions for ALL successful results
             if result.get("follow_up_suggestions"):
                 st.subheader("🎯 Suggested Follow-up Questions")
+                cols = st.columns(2)  # Create 2 columns for better layout
                 for i, suggestion in enumerate(result["follow_up_suggestions"]):
                     # Create a unique key for each suggestion button
-                    suggestion_key = f"suggestion_{st.session_state.session_id}_{i}_{len(st.session_state.conversation_history)}"
-                    if st.button(f"🔹 {suggestion}", key=suggestion_key):
-                        # Set the suggestion in session state and rerun to update the text area
-                        st.session_state.suggested_query = suggestion
-                        st.rerun()
+                    suggestion_key = f"suggestion_{st.session_state.session_id}_{i}_{len(st.session_state.conversation_history)}_{hash(suggestion)}"
+                    
+                    # Alternate between columns
+                    with cols[i % 2]:
+                        if st.button(f"🔹 {suggestion}", key=suggestion_key, use_container_width=True):
+                            # Set the suggestion in session state and rerun to update the text area
+                            st.session_state.suggested_query = suggestion
+                            st.rerun()
         
         else:
             st.error(f"❌ Error: {result.get('error', 'Unknown error occurred')}")
