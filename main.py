@@ -1124,6 +1124,48 @@ def render_visualization(viz_config: Dict[str, Any], use_plotly: bool = True):
             chart_data = df.set_index(viz_config["x"])[viz_config["y"]]
             st.line_chart(chart_data)
 
+def safe_initialize_conversation_history():
+    """Safely initialize or fix conversation history format"""
+    if 'conversation_history' not in st.session_state:
+        st.session_state.conversation_history = []
+    else:
+        # Fix any malformed entries
+        fixed_history = []
+        for item in st.session_state.conversation_history:
+            try:
+                if len(item) >= 3:
+                    if len(item) == 3:
+                        # Add default execution time for old entries
+                        fixed_item = (item[0], item[1], item[2], 0.0)
+                    else:
+                        fixed_item = item
+                    fixed_history.append(fixed_item)
+            except Exception:
+                # Skip corrupted entries
+                continue
+        st.session_state.conversation_history = fixed_history
+
+def safe_append_to_history(query, ai_response, timestamp, execution_time=0.0):
+    """Safely append to conversation history with proper error handling"""
+    try:
+        if 'conversation_history' not in st.session_state:
+            st.session_state.conversation_history = []
+        
+        # Ensure all components are valid
+        query = str(query) if query is not None else "Unknown query"
+        ai_response = str(ai_response) if ai_response is not None else "Unknown response"
+        
+        if not hasattr(timestamp, 'strftime'):
+            timestamp = datetime.now()
+        
+        execution_time = float(execution_time) if execution_time is not None else 0.0
+        
+        # Append as 4-tuple
+        st.session_state.conversation_history.append((query, ai_response, timestamp, execution_time))
+        
+    except Exception as e:
+        st.error(f"Error saving conversation: {str(e)}")
+
 # Enhanced Streamlit UI with Advanced Features
 def main():
     st.set_page_config(
@@ -1165,6 +1207,9 @@ def main():
     if 'session_id' not in st.session_state:
         st.session_state.session_id = hashlib.md5(str(datetime.now()).encode()).hexdigest()[:8]
     
+    # IMPORTANT: Fix conversation history
+    safe_initialize_conversation_history()
+    
     if 'rag_system' not in st.session_state:
         with st.spinner("🧠 Initializing AI Brain..."):
             st.session_state.rag_system = PropertyRAGSystem()
@@ -1172,9 +1217,6 @@ def main():
     if 'agent' not in st.session_state:
         with st.spinner("🤖 Booting AI Agent..."):
             st.session_state.agent = PropertyManagementAgent(st.session_state.rag_system)
-    
-    if 'conversation_history' not in st.session_state:
-        st.session_state.conversation_history = []
     
     if 'current_query' not in st.session_state:
         st.session_state.current_query = ""
@@ -1268,16 +1310,38 @@ def main():
     with col1:
         st.header("💬 AI Conversation")
         
-        # Display conversation history with enhanced formatting
+        # Display conversation history with enhanced formatting and error handling
         if st.session_state.conversation_history:
             with st.expander("📜 Conversation History", expanded=False):
-                for i, (user_msg, ai_response, timestamp, execution_time) in enumerate(st.session_state.conversation_history):
-                    st.markdown(f"**🕒 {timestamp.strftime('%H:%M:%S')} ({execution_time:.2f}s) - You:**")
-                    st.write(user_msg)
-                    st.markdown(f"**🤖 AI Assistant:**")
-                    st.write(ai_response[:300] + "..." if len(ai_response) > 300 else ai_response)
-                    if i < len(st.session_state.conversation_history) - 1:
-                        st.divider()
+                for i, history_item in enumerate(st.session_state.conversation_history):
+                    try:
+                        # Handle both old format (3-tuple) and new format (4-tuple)
+                        if len(history_item) == 4:
+                            user_msg, ai_response, timestamp, execution_time = history_item
+                        elif len(history_item) == 3:
+                            user_msg, ai_response, timestamp = history_item
+                            execution_time = 0.0  # Default for old entries
+                        else:
+                            # Fallback for unexpected formats
+                            user_msg = str(history_item[0]) if len(history_item) > 0 else "Unknown query"
+                            ai_response = str(history_item[1]) if len(history_item) > 1 else "Unknown response"
+                            timestamp = history_item[2] if len(history_item) > 2 and hasattr(history_item[2], 'strftime') else datetime.now()
+                            execution_time = 0.0
+                        
+                        st.markdown(f"**🕒 {timestamp.strftime('%H:%M:%S')} ({execution_time:.2f}s) - You:**")
+                        st.write(user_msg)
+                        st.markdown(f"**🤖 AI Assistant:**")
+                        st.write(ai_response[:300] + "..." if len(ai_response) > 300 else ai_response)
+                        if i < len(st.session_state.conversation_history) - 1:
+                            st.divider()
+                    except Exception as e:
+                        st.error(f"Error displaying conversation item {i}: {str(e)}")
+                        # Clear corrupted history item
+                        try:
+                            st.session_state.conversation_history.pop(i)
+                        except:
+                            pass
+                        break
         
         # Enhanced query input with auto-fill functionality
         query_container = st.container()
@@ -1337,11 +1401,11 @@ def main():
                     st.error(f"❌ Error processing query: {str(e)}")
                     return
             
-            # Add to conversation history with execution time
+            # Add to conversation history with execution time using safe function
             timestamp = datetime.now()
             ai_response = result.get('response', result.get('insights', 'Processed successfully'))
             execution_time = result.get('execution_time', 0)
-            st.session_state.conversation_history.append((query, ai_response, timestamp, execution_time))
+            safe_append_to_history(query, ai_response, timestamp, execution_time)
             
             # Display results with enhanced formatting
             if result["success"]:
@@ -1641,8 +1705,8 @@ def main():
                         {
                             "query": item[0],
                             "response": item[1],
-                            "timestamp": item[2].isoformat(),
-                            "execution_time": item[3]
+                            "timestamp": item[2].isoformat() if hasattr(item[2], 'isoformat') else str(item[2]),
+                            "execution_time": item[3] if len(item) > 3 else 0.0
                         } for item in st.session_state.conversation_history
                     ],
                     "analytics": analytics
