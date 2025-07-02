@@ -1131,10 +1131,15 @@ def main():
                     with col_b:
                         st.metric("Columns", len(result["results"].columns))
                     with col_c:
-                        if result["results"].select_dtypes(include=[np.number]).columns.any():
-                            numeric_cols = result["results"].select_dtypes(include=[np.number]).columns
+                        # For COUNT queries, show the actual count value
+                        df = result["results"]
+                        if len(df) == 1 and len(df.columns) == 1 and 'count' in df.columns[0].lower():
+                            actual_count = df.iloc[0, 0]
+                            st.metric("Count", actual_count)
+                        elif df.select_dtypes(include=[np.number]).columns.any():
+                            numeric_cols = df.select_dtypes(include=[np.number]).columns
                             if len(numeric_cols) > 0:
-                                avg_val = result["results"][numeric_cols[0]].mean()
+                                avg_val = df[numeric_cols[0]].mean()
                                 st.metric(f"Avg {numeric_cols[0]}", f"{avg_val:.2f}")
                     
                     # Download option
