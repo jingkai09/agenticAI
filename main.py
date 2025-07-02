@@ -650,120 +650,81 @@ class PropertyManagementAgent:
     
     def _generate_contextual_insights(self, query: str, sql: str, df: pd.DataFrame, 
                                     memory: ConversationMemory, domain_context: List[str]) -> str:
-        """Generate insights considering conversation history"""
+        """Generate precise, short insights that directly answer the query"""
         
         if df is None or df.empty:
-            return """
-            **📊 No Data Found**
-            
-            Your query didn't return any results. This could mean:
-            - The data you're looking for doesn't exist in the database
-            - Your search criteria might be too specific
-            - There might be data quality issues
-            
-            **💡 Suggestions:**
-            - Try broadening your search criteria
-            - Check if similar data exists with different filters
-            - Verify the database contains the expected information
-            """
+            return "**No data found** - No records match your query criteria."
         
-        # Analyze the data structure and content
+        # Get the actual result value for count queries
+        if len(df) == 1 and len(df.columns) == 1:
+            # This is likely a COUNT query - get the actual count value
+            count_value = df.iloc[0, 0]
+            column_name = df.columns[0].lower()
+            
+            if 'count' in column_name:
+                # Extract what we're counting from the query
+                query_lower = query.lower()
+                
+                if 'tenant' in query_lower:
+                    return f"**📊 Result:** {count_value} tenants found."
+                elif 'property' in query_lower or 'properties' in query_lower:
+                    return f"**📊 Result:** {count_value} properties found."
+                elif 'unit' in query_lower:
+                    return f"**📊 Result:** {count_value} units found."
+                elif 'payment' in query_lower:
+                    return f"**📊 Result:** {count_value} payments found."
+                elif 'maintenance' in query_lower or 'ticket' in query_lower:
+                    return f"**📊 Result:** {count_value} maintenance tickets found."
+                elif 'lease' in query_lower:
+                    return f"**📊 Result:** {count_value} leases found."
+                else:
+                    return f"**📊 Result:** {count_value} records found."
+        
+        # For detailed queries (multiple rows/columns)
         insights = []
         
-        # Basic data overview
-        insights.append(f"**📈 Data Overview:** Found {len(df)} record{'s' if len(df) != 1 else ''}")
+        # Basic overview
+        if len(df) > 1:
+            insights.append(f"**📈 Found {len(df)} records**")
         
-        # Column analysis
-        columns = df.columns.tolist()
-        if 'first_name' in columns and 'last_name' in columns:
-            insights.append(f"**👥 People Data:** This appears to be tenant/person information")
-        elif 'property_name' in columns or 'address' in columns:
-            insights.append(f"**🏠 Property Data:** This shows property-related information")
-        elif 'amount' in columns or 'rent_amount' in columns:
-            insights.append(f"**💰 Financial Data:** This contains monetary information")
-        elif 'status' in columns:
-            if 'status' in df.columns:
-                status_counts = df['status'].value_counts()
-                insights.append(f"**📊 Status Breakdown:** {dict(status_counts)}")
-        
-        # Numeric analysis
-        numeric_cols = df.select_dtypes(include=[np.number]).columns
-        if len(numeric_cols) > 0:
-            for col in numeric_cols[:2]:  # Analyze first 2 numeric columns
-                if 'amount' in col.lower() or 'rent' in col.lower():
-                    avg_val = df[col].mean()
-                    min_val = df[col].min()
-                    max_val = df[col].max()
-                    insights.append(f"**💵 {col.title()}:** Average ${avg_val:,.2f} (Range: ${min_val:,.2f} - ${max_val:,.2f})")
-                elif 'count' in col.lower() or col.lower() in ['bedrooms', 'bathrooms']:
-                    avg_val = df[col].mean()
-                    insights.append(f"**🏠 {col.title()}:** Average {avg_val:.1f}")
-        
-        # Query-specific insights
+        # Quick specific insights based on query type
         query_lower = query.lower()
+        
         if 'overdue' in query_lower or 'late' in query_lower:
             if len(df) > 0:
-                insights.append(f"**⚠️ Payment Concern:** You have {len(df)} overdue payment{'s' if len(df) != 1 else ''}. Consider immediate follow-up.")
+                total_amount = df['amount'].sum() if 'amount' in df.columns else None
+                if total_amount:
+                    insights.append(f"**💰 Total overdue: ${total_amount:,.2f}**")
+                else:
+                    insights.append(f"**⚠️ {len(df)} overdue payments**")
             else:
-                insights.append(f"**✅ Payment Status:** Great! No overdue payments found.")
+                insights.append("**✅ No overdue payments**")
         
         elif 'vacant' in query_lower:
             if len(df) > 0:
-                vacancy_rate = len(df)  # This would need total units for actual rate
-                insights.append(f"**🏠 Vacancy Alert:** {len(df)} vacant unit{'s' if len(df) != 1 else ''}. Focus on marketing and tenant acquisition.")
+                insights.append(f"**🏠 {len(df)} vacant units**")
             else:
-                insights.append(f"**✅ Occupancy:** Excellent! No vacant units.")
+                insights.append("**✅ Fully occupied**")
         
         elif 'maintenance' in query_lower:
             if len(df) > 0:
                 if 'priority' in df.columns:
-                    priority_counts = df['priority'].value_counts()
-                    insights.append(f"**🔧 Maintenance Priorities:** {dict(priority_counts)}")
-                insights.append(f"**📝 Action Required:** {len(df)} maintenance item{'s' if len(df) != 1 else ''} need{'s' if len(df) == 1 else ''} attention.")
+                    emergency_count = len(df[df['priority'].str.lower() == 'emergency']) if 'priority' in df.columns else 0
+                    if emergency_count > 0:
+                        insights.append(f"**🚨 {emergency_count} emergency tickets**")
+                insights.append(f"**🔧 {len(df)} maintenance items**")
         
-        elif 'tenant' in query_lower:
-            if len(df) > 0:
-                insights.append(f"**👥 Tenant Portfolio:** Managing {len(df)} tenant{'s' if len(df) != 1 else ''}.")
-                if len(df) < 10:
-                    insights.append("**💡 Growth Opportunity:** Small tenant base - consider expansion strategies.")
-                elif len(df) > 100:
-                    insights.append("**🎯 Scale Management:** Large tenant base - consider management software automation.")
+        elif any(word in query_lower for word in ['tenant', 'contact', 'email', 'phone']):
+            if 'email' in df.columns or 'phone' in df.columns:
+                insights.append(f"**👥 {len(df)} tenant contacts**")
         
-        # Business recommendations
-        recommendations = []
+        elif 'payment' in query_lower and 'amount' in df.columns:
+            total = df['amount'].sum()
+            avg = df['amount'].mean()
+            insights.append(f"**💵 Total: ${total:,.2f} | Avg: ${avg:,.2f}**")
         
-        if len(df) > 0:
-            if 'amount' in str(df.columns).lower():
-                recommendations.append("💰 **Financial Tracking:** Monitor these amounts for cash flow planning")
-            
-            if 'email' in df.columns:
-                recommendations.append("📧 **Communication:** Use email data for tenant communications and updates")
-            
-            if 'phone' in df.columns:
-                recommendations.append("📞 **Contact Management:** Maintain updated phone numbers for emergency contacts")
-        
-        # Conversation context
-        if len(memory.turns) > 1:
-            insights.append(f"**🔄 Follow-up Analysis:** This builds on your previous query about '{memory.turns[-2].user_query if len(memory.turns) >= 2 else 'previous topic'}'")
-        
-        # Combine all insights
-        final_insights = "\n\n".join(insights)
-        
-        if recommendations:
-            final_insights += "\n\n**🎯 Recommended Actions:**\n" + "\n".join([f"- {rec}" for rec in recommendations])
-        
-        # Add next steps
-        final_insights += "\n\n**🚀 Suggested Next Steps:**"
-        if 'tenant' in query_lower:
-            final_insights += "\n- Review tenant satisfaction and lease renewal dates\n- Check payment history and communication preferences"
-        elif 'property' in query_lower:
-            final_insights += "\n- Assess property performance and maintenance needs\n- Analyze occupancy rates and market positioning"
-        elif 'payment' in query_lower:
-            final_insights += "\n- Set up automated payment reminders\n- Review collection procedures for overdue amounts"
-        else:
-            final_insights += "\n- Consider how this data impacts your overall property management strategy\n- Look for patterns that could improve operational efficiency"
-        
-        return final_insights
+        # Return simple, direct answer
+        return "\n".join(insights) if insights else f"**📊 {len(df)} records found**"
     
     def _generate_followup_suggestions(self, df: pd.DataFrame, query: str) -> List[str]:
         """Generate intelligent follow-up suggestions based on results"""
@@ -1189,13 +1150,10 @@ def main():
                 
                 # Show insights
                 if result.get("insights"):
-                    st.subheader("💡 AI Insights")
-                    # Make sure we're not showing SQL in insights
+                    st.subheader("💡 Answer")
                     insights_text = result["insights"]
                     if insights_text and not insights_text.startswith("SELECT"):
                         st.markdown(insights_text)
-                    else:
-                        st.warning("Insights generation is in progress. The data above shows your query results.")
             
             elif result["type"] == "general_query":
                 st.subheader("💬 AI Response")
