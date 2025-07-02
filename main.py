@@ -650,81 +650,161 @@ class PropertyManagementAgent:
     
     def _generate_contextual_insights(self, query: str, sql: str, df: pd.DataFrame, 
                                     memory: ConversationMemory, domain_context: List[str]) -> str:
-        """Generate precise, short insights that directly answer the query"""
+        """Generate humanized, formal insights that directly answer the query"""
         
         if df is None or df.empty:
-            return "**No data found** - No records match your query criteria."
+            return "I wasn't able to find any records matching your criteria. You may want to check if the data exists or try adjusting your search parameters."
         
-        # Get the actual result value for count queries
+        # For COUNT queries - get the actual count value
         if len(df) == 1 and len(df.columns) == 1:
-            # This is likely a COUNT query - get the actual count value
             count_value = df.iloc[0, 0]
             column_name = df.columns[0].lower()
             
             if 'count' in column_name:
-                # Extract what we're counting from the query
                 query_lower = query.lower()
                 
                 if 'tenant' in query_lower:
-                    return f"**📊 Result:** {count_value} tenants found."
+                    if count_value == 0:
+                        return "Currently, there are no tenants in your database. This could indicate either an empty property portfolio or that tenant data hasn't been entered yet."
+                    elif count_value == 1:
+                        return "You currently have **1 tenant** in your property management system."
+                    else:
+                        return f"Based on your database records, you currently have **{count_value} tenants** under management."
+                
                 elif 'property' in query_lower or 'properties' in query_lower:
-                    return f"**📊 Result:** {count_value} properties found."
+                    if count_value == 0:
+                        return "No properties are currently recorded in your system."
+                    elif count_value == 1:
+                        return "You have **1 property** in your portfolio."
+                    else:
+                        return f"Your property portfolio consists of **{count_value} properties**."
+                
                 elif 'unit' in query_lower:
-                    return f"**📊 Result:** {count_value} units found."
+                    if count_value == 0:
+                        return "No units are currently recorded in your system."
+                    elif count_value == 1:
+                        return "You have **1 unit** available in your property management system."
+                    else:
+                        return f"Your property portfolio includes **{count_value} units** across all properties."
+                
                 elif 'payment' in query_lower:
-                    return f"**📊 Result:** {count_value} payments found."
+                    if count_value == 0:
+                        return "No payment records were found matching your criteria."
+                    elif count_value == 1:
+                        return "I found **1 payment record** that matches your query."
+                    else:
+                        return f"There are **{count_value} payment records** that match your search criteria."
+                
                 elif 'maintenance' in query_lower or 'ticket' in query_lower:
-                    return f"**📊 Result:** {count_value} maintenance tickets found."
+                    if count_value == 0:
+                        return "Great news! There are currently no maintenance tickets in your system."
+                    elif count_value == 1:
+                        return "You have **1 maintenance ticket** that requires attention."
+                    else:
+                        return f"There are currently **{count_value} maintenance tickets** in your system that may require attention."
+                
                 elif 'lease' in query_lower:
-                    return f"**📊 Result:** {count_value} leases found."
+                    if count_value == 0:
+                        return "No lease agreements were found matching your criteria."
+                    elif count_value == 1:
+                        return "I found **1 lease agreement** that matches your query."
+                    else:
+                        return f"There are **{count_value} lease agreements** that match your search criteria."
+                
+                elif 'overdue' in query_lower or 'late' in query_lower:
+                    if count_value == 0:
+                        return "Excellent! You have no overdue payments at this time. All tenants appear to be current with their rent."
+                    elif count_value == 1:
+                        return "You have **1 overdue payment** that requires follow-up."
+                    else:
+                        return f"There are **{count_value} overdue payments** that need your immediate attention."
+                
+                elif 'vacant' in query_lower:
+                    if count_value == 0:
+                        return "Wonderful! All your units are currently occupied. You have achieved 100% occupancy."
+                    elif count_value == 1:
+                        return "You have **1 vacant unit** that is available for new tenants."
+                    else:
+                        return f"You currently have **{count_value} vacant units** available for lease."
+                
                 else:
-                    return f"**📊 Result:** {count_value} records found."
+                    if count_value == 0:
+                        return "No records were found matching your search criteria."
+                    elif count_value == 1:
+                        return "I found **1 record** that matches your query."
+                    else:
+                        return f"I found **{count_value} records** that match your search criteria."
         
-        # For detailed queries (multiple rows/columns)
+        # For detailed queries (multiple rows/columns) - provide context-aware responses
         insights = []
-        
-        # Basic overview
-        if len(df) > 1:
-            insights.append(f"**📈 Found {len(df)} records**")
-        
-        # Quick specific insights based on query type
         query_lower = query.lower()
         
-        if 'overdue' in query_lower or 'late' in query_lower:
-            if len(df) > 0:
-                total_amount = df['amount'].sum() if 'amount' in df.columns else None
-                if total_amount:
-                    insights.append(f"**💰 Total overdue: ${total_amount:,.2f}**")
+        # Provide meaningful context based on the type of data returned
+        if 'first_name' in df.columns or 'last_name' in df.columns or 'email' in df.columns:
+            if len(df) == 1:
+                insights.append("Here are the details for the tenant you requested:")
+            else:
+                insights.append(f"I've retrieved information for **{len(df)} tenants** as requested:")
+        
+        elif 'property_name' in df.columns or 'address' in df.columns:
+            if len(df) == 1:
+                insights.append("Here are the property details you requested:")
+            else:
+                insights.append(f"I've found **{len(df)} properties** matching your criteria:")
+        
+        elif 'unit_number' in df.columns:
+            if len(df) == 1:
+                insights.append("Here are the unit details:")
+            else:
+                insights.append(f"I've located **{len(df)} units** that match your search:")
+        
+        elif 'amount' in df.columns and 'due_date' in df.columns:
+            if 'overdue' in query_lower:
+                if len(df) == 1:
+                    insights.append("Here is the overdue payment that requires attention:")
                 else:
-                    insights.append(f"**⚠️ {len(df)} overdue payments**")
+                    insights.append(f"I've identified **{len(df)} overdue payments** that need immediate follow-up:")
             else:
-                insights.append("**✅ No overdue payments**")
+                if len(df) == 1:
+                    insights.append("Here is the payment record you requested:")
+                else:
+                    insights.append(f"I've found **{len(df)} payment records** matching your criteria:")
         
-        elif 'vacant' in query_lower:
-            if len(df) > 0:
-                insights.append(f"**🏠 {len(df)} vacant units**")
+        elif 'description' in df.columns and 'status' in df.columns:
+            if len(df) == 1:
+                insights.append("Here is the maintenance ticket information:")
             else:
-                insights.append("**✅ Fully occupied**")
+                insights.append(f"I've found **{len(df)} maintenance tickets** in your system:")
         
-        elif 'maintenance' in query_lower:
-            if len(df) > 0:
-                if 'priority' in df.columns:
-                    emergency_count = len(df[df['priority'].str.lower() == 'emergency']) if 'priority' in df.columns else 0
-                    if emergency_count > 0:
-                        insights.append(f"**🚨 {emergency_count} emergency tickets**")
-                insights.append(f"**🔧 {len(df)} maintenance items**")
+        else:
+            if len(df) == 1:
+                insights.append("Here is the information you requested:")
+            else:
+                insights.append(f"I've found **{len(df)} records** that match your query:")
         
-        elif any(word in query_lower for word in ['tenant', 'contact', 'email', 'phone']):
-            if 'email' in df.columns or 'phone' in df.columns:
-                insights.append(f"**👥 {len(df)} tenant contacts**")
+        # Add specific insights based on data content
+        if 'overdue' in query_lower and 'amount' in df.columns:
+            total_overdue = df['amount'].sum()
+            insights.append(f"The total amount overdue is **${total_overdue:,.2f}**.")
         
-        elif 'payment' in query_lower and 'amount' in df.columns:
-            total = df['amount'].sum()
-            avg = df['amount'].mean()
-            insights.append(f"**💵 Total: ${total:,.2f} | Avg: ${avg:,.2f}**")
+        elif 'vacant' in query_lower and len(df) > 0:
+            insights.append("These units are currently available for new tenant applications.")
         
-        # Return simple, direct answer
-        return "\n".join(insights) if insights else f"**📊 {len(df)} records found**"
+        elif 'maintenance' in query_lower and 'priority' in df.columns:
+            emergency_count = len(df[df['priority'].str.lower() == 'emergency']) if 'priority' in df.columns else 0
+            if emergency_count > 0:
+                insights.append(f"**Important:** {emergency_count} of these tickets are marked as emergency priority.")
+        
+        elif 'payment' in query_lower and 'amount' in df.columns and len(df) > 1:
+            total_amount = df['amount'].sum()
+            avg_amount = df['amount'].mean()
+            insights.append(f"Total amount: **${total_amount:,.2f}** | Average: **${avg_amount:,.2f}**")
+        
+        # Return the formatted response
+        if insights:
+            return "\n\n".join(insights)
+        else:
+            return f"I've successfully retrieved **{len(df)} records** based on your request."
     
     def _generate_followup_suggestions(self, df: pd.DataFrame, query: str) -> List[str]:
         """Generate intelligent follow-up suggestions based on results"""
