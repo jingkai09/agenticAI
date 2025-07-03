@@ -1,14 +1,42 @@
 # Core dependencies
-streamlit
-pandas
-google-generativeai
+streamlit>=1.28.0
+pandas>=2.0.0
+google-generativeai>=0.3.0
 
 # Enhanced AI and Memory capabilities
-sentence-transformers
-faiss-cpu
-langchain
-numpy
+sentence-transformers>=2.2.0
+faiss-cpu>=1.7.0
+langchain>=0.1.0
+numpy>=1.24.0
+
+# Data analysis and predictive analytics
+scikit-learn>=1.3.0
+scipy>=1.11.0
+matplotlib>=3.7.0
+seaborn>=0.12.0
+plotly>=5.15.0
+
+# Statistical analysis and forecasting
+statsmodels>=0.14.0
+pmdarima>=2.0.0  # For ARIMA forecasting
+prophet>=1.1.4   # Facebook's time series forecasting
+xgboost>=1.7.0   # For machine learning predictions
 
 # Additional utilities for enhanced functionality
-python-dateutil
-pytz
+python-dateutil>=2.8.0
+pytz>=2023.3
+warnings  # Built-in module
+
+# Data processing and validation
+pydantic>=2.0.0
+typing-extensions>=4.7.0
+
+# Optional: Advanced analytics (uncomment if needed)
+# tensorflow>=2.13.0  # For deep learning models
+# torch>=2.0.0        # PyTorch for neural networks
+# lightgbm>=4.0.0     # LightGBM for gradient boosting
+
+# Development and testing (optional)
+# pytest>=7.4.0
+# black>=23.7.0
+# flake8>=6.0.0
