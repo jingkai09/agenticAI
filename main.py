@@ -1,6 +1,3 @@
-# enhanced_property_agent_with_ml_predictions.py - PART 1
-# Imports and Core Data Classes
-
 import os
 import re
 import sqlite3
