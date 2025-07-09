@@ -1,4 +1,5 @@
-# enhanced_property_agent_with_predictive_analytics.py
+# enhanced_property_agent_with_ml_predictions.py - PART 1
+# Imports and Core Data Classes
 
 import os
 import re
@@ -37,6 +38,10 @@ class QueryType(Enum):
     PREDICTIVE_ANALYSIS = "predictive_analysis"
     STRATEGIC_THINKING = "strategic_thinking"
     SCENARIO_PLANNING = "scenario_planning"
+    CHURN_PREDICTION = "churn_prediction"
+    RECOMMENDATION_SYSTEM = "recommendation_system"
+    CUSTOMER_SEGMENTATION = "customer_segmentation"
+    LIFETIME_VALUE = "lifetime_value"
 
 class PredictionType(Enum):
     OCCUPANCY_FORECAST = "occupancy_forecast"
@@ -45,6 +50,58 @@ class PredictionType(Enum):
     CASH_FLOW_PROJECTION = "cash_flow_projection"
     TENANT_CHURN = "tenant_churn"
     MARKET_ANALYSIS = "market_analysis"
+    CUSTOMER_CHURN = "customer_churn"
+    PURCHASE_INTENTION = "purchase_intention"
+    RENEWAL_PROBABILITY = "renewal_probability"
+    CROSS_SELL_OPPORTUNITY = "cross_sell_opportunity"
+    CUSTOMER_LIFETIME_VALUE = "customer_lifetime_value"
+    PRICE_SENSITIVITY = "price_sensitivity"
+
+class CustomerSegment(Enum):
+    PREMIUM = "premium"
+    STANDARD = "standard"
+    BUDGET = "budget"
+    AT_RISK = "at_risk"
+    HIGH_VALUE = "high_value"
+    GROWTH_POTENTIAL = "growth_potential"
+    LOYAL = "loyal"
+    NEW_CUSTOMER = "new_customer"
+
+@dataclass
+class ChurnPrediction:
+    """Customer churn prediction results"""
+    customer_id: str
+    churn_probability: float  # 0-1 scale
+    risk_level: str  # "low", "medium", "high", "critical"
+    key_risk_factors: List[str]
+    retention_recommendations: List[str]
+    time_to_churn: Optional[str]  # e.g., "2-3 months"
+    confidence_score: float
+
+@dataclass
+class RecommendationResult:
+    """Recommendation system results"""
+    customer_id: str
+    recommended_actions: List[str]
+    cross_sell_opportunities: List[str]
+    upsell_opportunities: List[str]
+    optimal_pricing: Optional[float]
+    engagement_strategies: List[str]
+    purchase_probability: float
+    confidence_score: float
+
+@dataclass
+class CustomerInsight:
+    """Comprehensive customer analytics"""
+    customer_id: str
+    segment: CustomerSegment
+    lifetime_value: float
+    predicted_ltv: float
+    satisfaction_score: float
+    engagement_level: str
+    payment_behavior: str
+    preferences: Dict[str, Any]
+    behavioral_patterns: List[str]
 
 @dataclass
 class PredictiveInsight:
@@ -56,6 +113,9 @@ class PredictiveInsight:
     recommendations: List[str]
     risk_factors: List[str]
     data_quality: str  # "high", "medium", "low"
+    churn_predictions: Optional[List[ChurnPrediction]] = None
+    recommendations_data: Optional[List[RecommendationResult]] = None
+    customer_insights: Optional[List[CustomerInsight]] = None
 
 @dataclass
 class ThinkingProcess:
@@ -94,12 +154,631 @@ class ConversationMemory:
     conversation_summary: str
     learned_patterns: Dict[str, Any]  # Patterns the AI has learned about this property portfolio
 
+class CustomerAnalytics:
+    """Advanced customer analytics and machine learning engine"""
+    
+    def __init__(self):
+        self.feature_weights = {
+            'payment_history': 0.25,
+            'engagement_score': 0.20,
+            'satisfaction_indicators': 0.20,
+            'usage_patterns': 0.15,
+            'support_interactions': 0.10,
+            'demographic_factors': 0.10
+        }
+        self.churn_thresholds = {
+            'low': 0.2,
+            'medium': 0.5,
+            'high': 0.7,
+            'critical': 0.85
+        }
+    
+    def predict_customer_churn(self, customers_df: pd.DataFrame, payments_df: pd.DataFrame, 
+                              tickets_df: pd.DataFrame) -> List[ChurnPrediction]:
+        """Predict customer churn probability using multiple data sources"""
+        churn_predictions = []
+        
+        try:
+            # Merge customer data with payment and support history
+            customer_metrics = self._calculate_customer_metrics(customers_df, payments_df, tickets_df)
+            
+            for _, customer in customer_metrics.iterrows():
+                churn_score = self._calculate_churn_score(customer)
+                risk_level = self._determine_risk_level(churn_score)
+                risk_factors = self._identify_risk_factors(customer)
+                
+                prediction = ChurnPrediction(
+                    customer_id=str(customer.get('customer_id', customer.get('id', 'unknown'))),
+                    churn_probability=churn_score,
+                    risk_level=risk_level,
+                    key_risk_factors=risk_factors,
+                    retention_recommendations=self._generate_retention_strategies(customer, risk_level),
+                    time_to_churn=self._estimate_time_to_churn(churn_score),
+                    confidence_score=self._calculate_prediction_confidence(customer)
+                )
+                
+                churn_predictions.append(prediction)
+        
+        except Exception as e:
+            # Return a sample prediction with error info
+            churn_predictions.append(ChurnPrediction(
+                customer_id="error",
+                churn_probability=0.5,
+                risk_level="unknown",
+                key_risk_factors=[f"Error in analysis: {str(e)}"],
+                retention_recommendations=["Review data quality and completeness"],
+                time_to_churn="unknown",
+                confidence_score=0.1
+            ))
+        
+        return sorted(churn_predictions, key=lambda x: x.churn_probability, reverse=True)
+    
+    def generate_recommendations(self, customers_df: pd.DataFrame, payments_df: pd.DataFrame,
+                               leases_df: pd.DataFrame, tickets_df: pd.DataFrame) -> List[RecommendationResult]:
+        """Generate personalized recommendations and cross-sell opportunities"""
+        recommendations = []
+        
+        try:
+            # Calculate customer profiles
+            customer_profiles = self._build_customer_profiles(customers_df, payments_df, leases_df, tickets_df)
+            
+            for _, customer in customer_profiles.iterrows():
+                rec_result = RecommendationResult(
+                    customer_id=str(customer.get('customer_id', customer.get('id', 'unknown'))),
+                    recommended_actions=self._generate_action_recommendations(customer),
+                    cross_sell_opportunities=self._identify_cross_sell_opportunities(customer),
+                    upsell_opportunities=self._identify_upsell_opportunities(customer),
+                    optimal_pricing=self._calculate_optimal_pricing(customer),
+                    engagement_strategies=self._suggest_engagement_strategies(customer),
+                    purchase_probability=self._calculate_purchase_probability(customer),
+                    confidence_score=self._calculate_recommendation_confidence(customer)
+                )
+                
+                recommendations.append(rec_result)
+        
+        except Exception as e:
+            # Return a sample recommendation with error info
+            recommendations.append(RecommendationResult(
+                customer_id="error",
+                recommended_actions=[f"Error in analysis: {str(e)}"],
+                cross_sell_opportunities=["Review data structure"],
+                upsell_opportunities=["Ensure data completeness"],
+                optimal_pricing=None,
+                engagement_strategies=["Fix data pipeline"],
+                purchase_probability=0.5,
+                confidence_score=0.1
+            ))
+        
+        return sorted(recommendations, key=lambda x: x.purchase_probability, reverse=True)
+    
+    def segment_customers(self, customers_df: pd.DataFrame, payments_df: pd.DataFrame) -> List[CustomerInsight]:
+        """Segment customers and provide insights"""
+        customer_insights = []
+        
+        try:
+            # Calculate comprehensive customer metrics
+            customer_data = self._calculate_comprehensive_metrics(customers_df, payments_df)
+            
+            for _, customer in customer_data.iterrows():
+                insight = CustomerInsight(
+                    customer_id=str(customer.get('customer_id', customer.get('id', 'unknown'))),
+                    segment=self._determine_customer_segment(customer),
+                    lifetime_value=customer.get('current_ltv', 0),
+                    predicted_ltv=customer.get('predicted_ltv', 0),
+                    satisfaction_score=customer.get('satisfaction_score', 0.5),
+                    engagement_level=self._calculate_engagement_level(customer),
+                    payment_behavior=self._analyze_payment_behavior(customer),
+                    preferences=self._extract_preferences(customer),
+                    behavioral_patterns=self._identify_behavioral_patterns(customer)
+                )
+                
+                customer_insights.append(insight)
+        
+        except Exception as e:
+            # Return a sample insight with error info
+            customer_insights.append(CustomerInsight(
+                customer_id="error",
+                segment=CustomerSegment.STANDARD,
+                lifetime_value=0,
+                predicted_ltv=0,
+                satisfaction_score=0.5,
+                engagement_level="unknown",
+                payment_behavior=f"Error: {str(e)}",
+                preferences={},
+                behavioral_patterns=["Data analysis error"]
+            ))
+        
+        return customer_insights
+    
+    def _calculate_customer_metrics(self, customers_df: pd.DataFrame, payments_df: pd.DataFrame, 
+                                  tickets_df: pd.DataFrame) -> pd.DataFrame:
+        """Calculate key metrics for churn prediction"""
+        metrics = []
+        
+        for _, customer in customers_df.iterrows():
+            customer_id = customer.get('id')
+            
+            # Payment metrics
+            customer_payments = payments_df[payments_df['tenant_id'] == customer_id] if 'tenant_id' in payments_df.columns else pd.DataFrame()
+            
+            # Support ticket metrics
+            customer_tickets = tickets_df[tickets_df['raised_by'] == customer_id] if 'raised_by' in tickets_df.columns else pd.DataFrame()
+            
+            # Calculate metrics
+            metrics.append({
+                'customer_id': customer_id,
+                'payment_frequency': len(customer_payments),
+                'avg_payment_amount': customer_payments['amount'].mean() if not customer_payments.empty else 0,
+                'late_payments': len(customer_payments[customer_payments['paid_on'].isna()]) if 'paid_on' in customer_payments.columns else 0,
+                'support_tickets': len(customer_tickets),
+                'last_payment_days': self._days_since_last_payment(customer_payments),
+                'tenure_days': self._calculate_tenure(customer),
+                'complaint_ratio': len(customer_tickets[customer_tickets['priority'] == 'emergency']) / max(len(customer_tickets), 1) if not customer_tickets.empty else 0
+            })
+        
+        return pd.DataFrame(metrics)
+    
+    def _calculate_churn_score(self, customer: pd.Series) -> float:
+        """Calculate churn probability score (0-1)"""
+        score = 0.0
+        
+        # Payment behavior (25%)
+        if customer.get('late_payments', 0) > 2:
+            score += 0.15
+        if customer.get('last_payment_days', 0) > 60:
+            score += 0.10
+        
+        # Support interaction patterns (20%)
+        if customer.get('support_tickets', 0) > 5:
+            score += 0.10
+        if customer.get('complaint_ratio', 0) > 0.3:
+            score += 0.10
+        
+        # Engagement patterns (20%)
+        if customer.get('payment_frequency', 0) < 3:
+            score += 0.15
+        if customer.get('tenure_days', 365) < 90:
+            score += 0.05
+        
+        # Financial indicators (15%)
+        avg_payment = customer.get('avg_payment_amount', 0)
+        if avg_payment > 0 and avg_payment < 500:
+            score += 0.05
+        
+        # Random factor for realism (20%)
+        base_churn_rate = 0.15  # 15% base churn rate
+        score += base_churn_rate
+        
+        return min(score, 1.0)
+    
+    def _determine_risk_level(self, churn_score: float) -> str:
+        """Determine risk level based on churn score"""
+        if churn_score >= self.churn_thresholds['critical']:
+            return "critical"
+        elif churn_score >= self.churn_thresholds['high']:
+            return "high"
+        elif churn_score >= self.churn_thresholds['medium']:
+            return "medium"
+        else:
+            return "low"
+    
+    def _identify_risk_factors(self, customer: pd.Series) -> List[str]:
+        """Identify specific risk factors for churn"""
+        factors = []
+        
+        if customer.get('late_payments', 0) > 2:
+            factors.append("Multiple late payments")
+        if customer.get('last_payment_days', 0) > 60:
+            factors.append("No recent payments")
+        if customer.get('support_tickets', 0) > 5:
+            factors.append("High support ticket volume")
+        if customer.get('complaint_ratio', 0) > 0.3:
+            factors.append("High complaint rate")
+        if customer.get('tenure_days', 365) < 90:
+            factors.append("New customer (higher churn risk)")
+        if customer.get('payment_frequency', 0) < 3:
+            factors.append("Low engagement/payment frequency")
+        
+        if not factors:
+            factors.append("General market churn risk")
+        
+        return factors
+    
+    def _generate_retention_strategies(self, customer: pd.Series, risk_level: str) -> List[str]:
+        """Generate personalized retention strategies"""
+        strategies = []
+        
+        if risk_level == "critical":
+            strategies.extend([
+                "Immediate personal outreach by account manager",
+                "Offer personalized incentives or discounts",
+                "Schedule urgent satisfaction review call"
+            ])
+        elif risk_level == "high":
+            strategies.extend([
+                "Proactive customer service check-in",
+                "Offer flexible payment terms if needed",
+                "Provide additional value-added services"
+            ])
+        elif risk_level == "medium":
+            strategies.extend([
+                "Send customer satisfaction survey",
+                "Offer loyalty program enrollment",
+                "Provide service upgrade options"
+            ])
+        else:
+            strategies.extend([
+                "Continue excellent service delivery",
+                "Occasional check-in communications",
+                "Offer referral incentives"
+            ])
+        
+        # Add specific strategies based on risk factors
+        if customer.get('late_payments', 0) > 2:
+            strategies.append("Set up automated payment reminders")
+        if customer.get('support_tickets', 0) > 5:
+            strategies.append("Assign dedicated support representative")
+        
+        return strategies
+    
+    def _estimate_time_to_churn(self, churn_score: float) -> str:
+        """Estimate time until potential churn"""
+        if churn_score >= 0.85:
+            return "1-2 months"
+        elif churn_score >= 0.7:
+            return "2-4 months"
+        elif churn_score >= 0.5:
+            return "4-8 months"
+        else:
+            return "8+ months"
+    
+    def _calculate_prediction_confidence(self, customer: pd.Series) -> float:
+        """Calculate confidence in the churn prediction"""
+        # Base confidence on data completeness and customer history
+        data_completeness = sum([
+            1 if customer.get('payment_frequency', 0) > 0 else 0,
+            1 if customer.get('tenure_days', 0) > 30 else 0,
+            1 if customer.get('support_tickets', 0) >= 0 else 0
+        ]) / 3
+        
+        # Higher confidence for customers with more history
+        history_factor = min(customer.get('tenure_days', 30) / 365, 1.0)
+        
+        return (data_completeness * 0.6 + history_factor * 0.4)
+
+    def _build_customer_profiles(self, customers_df: pd.DataFrame, payments_df: pd.DataFrame,
+                               leases_df: pd.DataFrame, tickets_df: pd.DataFrame) -> pd.DataFrame:
+        """Build comprehensive customer profiles for recommendations"""
+        profiles = []
+        
+        for _, customer in customers_df.iterrows():
+            customer_id = customer.get('id')
+            
+            # Get related data
+            customer_payments = payments_df[payments_df['tenant_id'] == customer_id] if 'tenant_id' in payments_df.columns else pd.DataFrame()
+            customer_leases = leases_df[leases_df['tenant_id'] == customer_id] if 'tenant_id' in leases_df.columns else pd.DataFrame()
+            customer_tickets = tickets_df[tickets_df['raised_by'] == customer_id] if 'raised_by' in tickets_df.columns else pd.DataFrame()
+            
+            # Calculate profile metrics
+            profiles.append({
+                'customer_id': customer_id,
+                'total_payments': customer_payments['amount'].sum() if not customer_payments.empty else 0,
+                'avg_payment': customer_payments['amount'].mean() if not customer_payments.empty else 0,
+                'payment_consistency': self._calculate_payment_consistency(customer_payments),
+                'current_rent': customer_leases['rent_amount'].iloc[-1] if not customer_leases.empty else 0,
+                'lease_renewals': len(customer_leases),
+                'satisfaction_indicators': self._calculate_satisfaction_score(customer_tickets),
+                'service_usage': len(customer_tickets),
+                'tenure_months': self._calculate_tenure_months(customer),
+                'property_preferences': self._extract_property_preferences(customer_leases)
+            })
+        
+        return pd.DataFrame(profiles)
+    
+    def _generate_action_recommendations(self, customer: pd.Series) -> List[str]:
+        """Generate specific action recommendations for a customer"""
+        actions = []
+        
+        total_payments = customer.get('total_payments', 0)
+        satisfaction = customer.get('satisfaction_indicators', 0.5)
+        tenure = customer.get('tenure_months', 0)
+        
+        if total_payments > 10000:
+            actions.append("Offer VIP customer benefits and priority service")
+        if satisfaction < 0.4:
+            actions.append("Schedule satisfaction improvement consultation")
+        if tenure > 12:
+            actions.append("Recognize loyalty with appreciation program")
+        if customer.get('payment_consistency', 0.5) > 0.8:
+            actions.append("Offer automatic payment discount")
+        if customer.get('service_usage', 0) == 0:
+            actions.append("Introduce available services and amenities")
+        
+        if not actions:
+            actions.append("Maintain current service level and monitor satisfaction")
+        
+        return actions
+    
+    def _identify_cross_sell_opportunities(self, customer: pd.Series) -> List[str]:
+        """Identify cross-selling opportunities"""
+        opportunities = []
+        
+        if customer.get('tenure_months', 0) > 6:
+            opportunities.append("Premium maintenance package")
+        if customer.get('satisfaction_indicators', 0.5) > 0.7:
+            opportunities.append("Refer-a-friend program with incentives")
+        if customer.get('total_payments', 0) > 5000:
+            opportunities.append("Property management services for owned properties")
+        if customer.get('service_usage', 0) < 2:
+            opportunities.append("Concierge services and amenity packages")
+        
+        opportunities.extend([
+            "Renter's insurance partnership",
+            "Storage unit rental",
+            "Parking space upgrade"
+        ])
+        
+        return opportunities[:4]  # Limit to top 4
+    
+    def _identify_upsell_opportunities(self, customer: pd.Series) -> List[str]:
+        """Identify upselling opportunities"""
+        opportunities = []
+        
+        current_rent = customer.get('current_rent', 0)
+        payment_consistency = customer.get('payment_consistency', 0.5)
+        
+        if payment_consistency > 0.8 and current_rent > 0:
+            opportunities.append("Premium unit upgrade with better amenities")
+        if customer.get('lease_renewals', 0) > 1:
+            opportunities.append("Multi-year lease with benefits")
+        if customer.get('satisfaction_indicators', 0.5) > 0.8:
+            opportunities.append("Luxury service tier upgrade")
+        
+        opportunities.extend([
+            "Extended lease terms with locked rates",
+            "Premium appliance packages",
+            "Smart home technology upgrades"
+        ])
+        
+        return opportunities[:3]  # Limit to top 3
+    
+    def _calculate_optimal_pricing(self, customer: pd.Series) -> Optional[float]:
+        """Calculate optimal pricing for the customer"""
+        current_rent = customer.get('current_rent', 0)
+        payment_consistency = customer.get('payment_consistency', 0.5)
+        satisfaction = customer.get('satisfaction_indicators', 0.5)
+        
+        if current_rent == 0:
+            return None
+        
+        # Adjust pricing based on customer profile
+        price_multiplier = 1.0
+        
+        if payment_consistency > 0.9:
+            price_multiplier += 0.05  # Can charge slightly more for reliable payers
+        if satisfaction > 0.8:
+            price_multiplier += 0.03  # Satisfied customers less price sensitive
+        if customer.get('tenure_months', 0) > 12:
+            price_multiplier -= 0.02  # Loyalty discount
+        
+        return round(current_rent * price_multiplier, 2)
+    
+    def _suggest_engagement_strategies(self, customer: pd.Series) -> List[str]:
+        """Suggest engagement strategies"""
+        strategies = []
+        
+        if customer.get('service_usage', 0) == 0:
+            strategies.append("Send welcome package with service information")
+        if customer.get('satisfaction_indicators', 0.5) > 0.8:
+            strategies.append("Request positive review or testimonial")
+        if customer.get('tenure_months', 0) > 6:
+            strategies.append("Send personalized anniversary message")
+        
+        strategies.extend([
+            "Monthly community newsletter",
+            "Seasonal maintenance reminders",
+            "Feedback surveys and follow-ups"
+        ])
+        
+        return strategies[:4]
+    
+    def _calculate_purchase_probability(self, customer: pd.Series) -> float:
+        """Calculate probability of additional purchases/upgrades"""
+        factors = [
+            customer.get('payment_consistency', 0.5),
+            customer.get('satisfaction_indicators', 0.5),
+            min(customer.get('tenure_months', 0) / 12, 1.0),
+            min(customer.get('total_payments', 0) / 10000, 1.0)
+        ]
+        
+        return sum(factors) / len(factors)
+    
+    def _calculate_recommendation_confidence(self, customer: pd.Series) -> float:
+        """Calculate confidence in recommendations"""
+        data_quality_factors = [
+            1 if customer.get('total_payments', 0) > 0 else 0,
+            1 if customer.get('tenure_months', 0) > 1 else 0,
+            1 if customer.get('satisfaction_indicators', -1) >= 0 else 0
+        ]
+        
+        return sum(data_quality_factors) / len(data_quality_factors)
+    
+    # Helper methods for calculations
+    def _days_since_last_payment(self, payments_df: pd.DataFrame) -> int:
+        """Calculate days since last payment"""
+        if payments_df.empty or 'paid_on' not in payments_df.columns:
+            return 0
+        
+        last_payment = payments_df['paid_on'].max()
+        if pd.isna(last_payment):
+            return 365  # No payments made
+        
+        try:
+            last_date = pd.to_datetime(last_payment)
+            return (datetime.now() - last_date).days
+        except:
+            return 0
+    
+    def _calculate_tenure(self, customer: pd.Series) -> int:
+        """Calculate customer tenure in days"""
+        if 'created_at' in customer:
+            try:
+                created_date = pd.to_datetime(customer['created_at'])
+                return (datetime.now() - created_date).days
+            except:
+                return 365
+        return 365
+    
+    def _calculate_tenure_months(self, customer: pd.Series) -> int:
+        """Calculate customer tenure in months"""
+        return self._calculate_tenure(customer) // 30
+    
+    def _calculate_payment_consistency(self, payments_df: pd.DataFrame) -> float:
+        """Calculate payment consistency score"""
+        if payments_df.empty:
+            return 0.0
+        
+        total_payments = len(payments_df)
+        on_time_payments = len(payments_df[payments_df['paid_on'].notna()]) if 'paid_on' in payments_df.columns else total_payments
+        
+        return on_time_payments / total_payments if total_payments > 0 else 0.0
+    
+    def _calculate_satisfaction_score(self, tickets_df: pd.DataFrame) -> float:
+        """Calculate satisfaction score based on support tickets"""
+        if tickets_df.empty:
+            return 0.7  # Neutral score if no tickets
+        
+        total_tickets = len(tickets_df)
+        emergency_tickets = len(tickets_df[tickets_df['priority'] == 'emergency']) if 'priority' in tickets_df.columns else 0
+        
+        # Lower satisfaction if many emergency tickets
+        satisfaction = max(0.1, 1.0 - (emergency_tickets / total_tickets))
+        return satisfaction
+    
+    def _extract_property_preferences(self, leases_df: pd.DataFrame) -> Dict[str, Any]:
+        """Extract property preferences from lease history"""
+        if leases_df.empty:
+            return {}
+        
+        preferences = {
+            'avg_rent_range': leases_df['rent_amount'].mean() if 'rent_amount' in leases_df.columns else 0,
+            'lease_length_preference': 12  # Default
+        }
+        
+        return preferences
+    
+    def _calculate_comprehensive_metrics(self, customers_df: pd.DataFrame, payments_df: pd.DataFrame) -> pd.DataFrame:
+        """Calculate comprehensive metrics for customer segmentation"""
+        metrics = []
+        
+        for _, customer in customers_df.iterrows():
+            customer_id = customer.get('id')
+            customer_payments = payments_df[payments_df['tenant_id'] == customer_id] if 'tenant_id' in payments_df.columns else pd.DataFrame()
+            
+            total_value = customer_payments['amount'].sum() if not customer_payments.empty else 0
+            
+            metrics.append({
+                'customer_id': customer_id,
+                'current_ltv': total_value,
+                'predicted_ltv': total_value * 1.2,  # Simple prediction
+                'satisfaction_score': 0.7 + (total_value / 10000) * 0.2,  # Higher value customers assumed more satisfied
+                'payment_frequency': len(customer_payments),
+                'avg_payment': customer_payments['amount'].mean() if not customer_payments.empty else 0,
+                'tenure_months': self._calculate_tenure_months(customer)
+            })
+        
+        return pd.DataFrame(metrics)
+    
+    def _determine_customer_segment(self, customer: pd.Series) -> CustomerSegment:
+        """Determine customer segment"""
+
+# enhanced_property_agent_with_ml_predictions.py - PART 4
+# Customer Analytics Segmentation and Predictive Engine
+
+    def _determine_customer_segment(self, customer: pd.Series) -> CustomerSegment:
+        """Determine customer segment"""
+        ltv = customer.get('current_ltv', 0)
+        satisfaction = customer.get('satisfaction_score', 0.5)
+        tenure = customer.get('tenure_months', 0)
+        
+        if ltv > 15000 and satisfaction > 0.8:
+            return CustomerSegment.PREMIUM
+        elif satisfaction < 0.3 or ltv < 1000:
+            return CustomerSegment.AT_RISK
+        elif ltv > 8000:
+            return CustomerSegment.HIGH_VALUE
+        elif tenure < 3:
+            return CustomerSegment.NEW_CUSTOMER
+        elif satisfaction > 0.8 and tenure > 12:
+            return CustomerSegment.LOYAL
+        elif ltv > 5000:
+            return CustomerSegment.GROWTH_POTENTIAL
+        elif ltv < 3000:
+            return CustomerSegment.BUDGET
+        else:
+            return CustomerSegment.STANDARD
+    
+    def _calculate_engagement_level(self, customer: pd.Series) -> str:
+        """Calculate customer engagement level"""
+        frequency = customer.get('payment_frequency', 0)
+        satisfaction = customer.get('satisfaction_score', 0.5)
+        
+        if frequency > 10 and satisfaction > 0.7:
+            return "high"
+        elif frequency > 5 and satisfaction > 0.5:
+            return "medium"
+        else:
+            return "low"
+    
+    def _analyze_payment_behavior(self, customer: pd.Series) -> str:
+        """Analyze payment behavior pattern"""
+        avg_payment = customer.get('avg_payment', 0)
+        frequency = customer.get('payment_frequency', 0)
+        
+        if avg_payment > 2000 and frequency > 8:
+            return "premium_regular"
+        elif frequency > 10:
+            return "frequent_payer"
+        elif avg_payment > 1500:
+            return "high_value"
+        elif frequency < 3:
+            return "irregular"
+        else:
+            return "standard"
+    
+    def _extract_preferences(self, customer: pd.Series) -> Dict[str, Any]:
+        """Extract customer preferences"""
+        return {
+            'preferred_payment_range': customer.get('avg_payment', 0),
+            'engagement_preference': self._calculate_engagement_level(customer),
+            'value_tier': 'premium' if customer.get('current_ltv', 0) > 10000 else 'standard'
+        }
+    
+    def _identify_behavioral_patterns(self, customer: pd.Series) -> List[str]:
+        """Identify behavioral patterns"""
+        patterns = []
+        
+        if customer.get('payment_frequency', 0) > 8:
+            patterns.append("Consistent payment behavior")
+        if customer.get('satisfaction_score', 0.5) > 0.8:
+            patterns.append("High satisfaction levels")
+        if customer.get('tenure_months', 0) > 12:
+            patterns.append("Long-term customer loyalty")
+        if customer.get('current_ltv', 0) > 8000:
+            patterns.append("High-value spending pattern")
+        
+        if not patterns:
+            patterns.append("Standard customer behavior")
+        
+        return patterns
+
 class PredictiveAnalytics:
-    """Advanced predictive analytics engine"""
+    """Enhanced predictive analytics engine with ML capabilities"""
     
     def __init__(self):
         self.seasonal_patterns = {}
         self.trend_cache = {}
+        self.customer_analytics = CustomerAnalytics()
     
     def analyze_occupancy_trends(self, df: pd.DataFrame) -> Dict[str, Any]:
         """Analyze occupancy patterns and predict future trends"""
@@ -220,9 +899,48 @@ class PredictiveAnalytics:
             forecast["error"] = str(e)
         
         return forecast
+    
+    def predict_customer_churn_batch(self, customers_df: pd.DataFrame, payments_df: pd.DataFrame, 
+                                   tickets_df: pd.DataFrame) -> Dict[str, Any]:
+        """Predict customer churn for all customers"""
+        churn_predictions = self.customer_analytics.predict_customer_churn(
+            customers_df, payments_df, tickets_df
+        )
+        
+        # Aggregate statistics
+        high_risk_count = len([p for p in churn_predictions if p.risk_level in ['high', 'critical']])
+        avg_churn_prob = sum([p.churn_probability for p in churn_predictions]) / len(churn_predictions) if churn_predictions else 0
+        
+        return {
+            "total_customers_analyzed": len(churn_predictions),
+            "high_risk_customers": high_risk_count,
+            "average_churn_probability": round(avg_churn_prob, 3),
+            "predicted_monthly_churn": max(1, int(len(churn_predictions) * avg_churn_prob / 12)),
+            "churn_predictions": churn_predictions,
+            "retention_priority": [p for p in churn_predictions if p.risk_level in ['high', 'critical']][:5]
+        }
+    
+    def generate_customer_recommendations_batch(self, customers_df: pd.DataFrame, payments_df: pd.DataFrame,
+                                              leases_df: pd.DataFrame, tickets_df: pd.DataFrame) -> Dict[str, Any]:
+        """Generate recommendations for all customers"""
+        recommendations = self.customer_analytics.generate_recommendations(
+            customers_df, payments_df, leases_df, tickets_df
+        )
+        
+        # Aggregate insights
+        high_potential = [r for r in recommendations if r.purchase_probability > 0.7]
+        total_revenue_opportunity = sum([r.optimal_pricing or 0 for r in recommendations])
+        
+        return {
+            "total_customers_analyzed": len(recommendations),
+            "high_potential_customers": len(high_potential),
+            "revenue_optimization_opportunity": round(total_revenue_opportunity, 2),
+            "recommendations": recommendations,
+            "priority_recommendations": high_potential[:5]
+        }
 
 class StrategicThinking:
-    """Strategic thinking and scenario planning engine"""
+    """Enhanced strategic thinking and scenario planning engine"""
     
     def __init__(self):
         self.market_factors = [
@@ -237,7 +955,8 @@ class StrategicThinking:
             "competitive_advantages": [],
             "growth_opportunities": [],
             "strategic_risks": [],
-            "recommendations": []
+            "recommendations": [],
+            "customer_insights": {}
         }
         
         try:
@@ -269,22 +988,30 @@ class StrategicThinking:
                         analysis["strategic_risks"].append("High vacancy rate indicates market or operational issues")
                         analysis["recommendations"].append("Conduct market analysis and review pricing strategy")
             
-            # Analyze tenant relationships
-            if 'tenants' in portfolio_data:
-                tenants_df = portfolio_data['tenants']
-                tenant_count = len(tenants_df)
+            # Enhanced customer analysis
+            if 'tenants' in portfolio_data and 'payments' in portfolio_data:
+                customer_analytics = CustomerAnalytics()
+                customer_insights = customer_analytics.segment_customers(
+                    portfolio_data['tenants'], portfolio_data['payments']
+                )
                 
-                if tenant_count > 50:
-                    analysis["competitive_advantages"].append("Large tenant base provides stable income stream")
+                # Analyze customer portfolio
+                premium_customers = [c for c in customer_insights if c.segment == CustomerSegment.PREMIUM]
+                at_risk_customers = [c for c in customer_insights if c.segment == CustomerSegment.AT_RISK]
                 
-                # Check for tenant concentration risk
-                if 'leases' in portfolio_data:
-                    leases_df = portfolio_data['leases']
-                    if 'rent_amount' in leases_df.columns and len(leases_df) > 0:
-                        avg_rent = leases_df['rent_amount'].mean()
-                        max_rent = leases_df['rent_amount'].max()
-                        if max_rent > avg_rent * 3:
-                            analysis["strategic_risks"].append("High tenant concentration risk")
+                analysis["customer_insights"] = {
+                    "total_customers": len(customer_insights),
+                    "premium_customers": len(premium_customers),
+                    "at_risk_customers": len(at_risk_customers),
+                    "avg_customer_ltv": sum([c.lifetime_value for c in customer_insights]) / len(customer_insights) if customer_insights else 0
+                }
+                
+                if len(premium_customers) > len(customer_insights) * 0.2:
+                    analysis["competitive_advantages"].append("Strong premium customer base")
+                
+                if len(at_risk_customers) > len(customer_insights) * 0.3:
+                    analysis["strategic_risks"].append("High proportion of at-risk customers")
+                    analysis["recommendations"].append("Implement customer retention program")
         
         except Exception as e:
             analysis["error"] = str(e)
@@ -295,25 +1022,31 @@ class StrategicThinking:
         """Generate multiple scenarios and strategic responses"""
         scenarios = {
             "optimistic": {
-                "description": "Strong market growth, high demand",
+                "description": "Strong market growth, high demand, improved customer retention",
                 "occupancy_change": "+5%",
                 "rent_change": "+8%",
                 "maintenance_change": "+2%",
-                "strategy": "Expand portfolio, increase rents gradually"
+                "churn_rate_change": "-30%",
+                "customer_acquisition": "+25%",
+                "strategy": "Expand portfolio, increase rents gradually, invest in premium services"
             },
             "baseline": {
-                "description": "Stable market conditions",
+                "description": "Stable market conditions, moderate customer satisfaction",
                 "occupancy_change": "0%",
                 "rent_change": "+3%",
                 "maintenance_change": "+5%",
-                "strategy": "Focus on operational efficiency and tenant retention"
+                "churn_rate_change": "0%",
+                "customer_acquisition": "+5%",
+                "strategy": "Focus on operational efficiency, implement retention programs"
             },
             "pessimistic": {
-                "description": "Economic downturn, reduced demand",
+                "description": "Economic downturn, increased competition, higher churn",
                 "occupancy_change": "-8%",
                 "rent_change": "-2%",
                 "maintenance_change": "+10%",
-                "strategy": "Reduce costs, improve tenant value proposition, defer non-essential capex"
+                "churn_rate_change": "+50%",
+                "customer_acquisition": "-15%",
+                "strategy": "Reduce costs, aggressive retention programs, competitive pricing"
             }
         }
         
@@ -321,17 +1054,24 @@ class StrategicThinking:
             "scenarios": scenarios,
             "recommended_preparations": [
                 "Build cash reserves for at least 6 months operating expenses",
-                "Diversify tenant base to reduce concentration risk",
-                "Implement predictive maintenance to control costs",
-                "Develop strong tenant relationships to improve retention"
+                "Implement predictive churn prevention system",
+                "Develop customer segmentation and personalization strategy",
+                "Create flexible pricing and service tier options",
+                "Establish partnerships for cross-selling opportunities",
+                "Invest in customer experience technology"
             ],
             "key_indicators_to_monitor": [
-                "Local employment rates",
-                "New construction permits",
-                "Average market rents",
-                "Tenant payment patterns"
+                "Customer churn rate and early warning signals",
+                "Net Promoter Score and satisfaction metrics",
+                "Customer lifetime value trends",
+                "Market rental rate movements",
+                "Local employment and demographic changes",
+                "Competitor pricing and service offerings"
             ]
         }
+
+# enhanced_property_agent_with_ml_predictions.py - PART 5
+# RAG System and Context Management
 
 class EntityExtractor:
     """Extracts and tracks entities mentioned in conversation"""
@@ -359,12 +1099,12 @@ class ContextResolver:
     
     def __init__(self):
         self.reference_patterns = {
-            'they': ['tenants', 'properties', 'units', 'payments'],
-            'them': ['tenants', 'properties', 'units', 'payments'],
-            'those': ['tenants', 'properties', 'units', 'tickets'],
-            'these': ['tenants', 'properties', 'units', 'tickets'],
-            'it': ['property', 'unit', 'payment', 'ticket'],
-            'that': ['property', 'unit', 'payment', 'ticket']
+            'they': ['tenants', 'properties', 'units', 'payments', 'customers'],
+            'them': ['tenants', 'properties', 'units', 'payments', 'customers'],
+            'those': ['tenants', 'properties', 'units', 'tickets', 'customers'],
+            'these': ['tenants', 'properties', 'units', 'tickets', 'customers'],
+            'it': ['property', 'unit', 'payment', 'ticket', 'customer'],
+            'that': ['property', 'unit', 'payment', 'ticket', 'customer']
         }
     
     def resolve_references(self, query: str, memory: ConversationMemory) -> str:
@@ -402,7 +1142,7 @@ class ContextResolver:
         return None
 
 class PropertyRAGSystem:
-    """Enhanced RAG system with conversation memory and predictive knowledge"""
+    """Enhanced RAG system with conversation memory and ML knowledge"""
     
     def __init__(self):
         self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
@@ -416,7 +1156,7 @@ class PropertyRAGSystem:
         self._initialize_domain_knowledge()
     
     def _initialize_domain_knowledge(self):
-        """Initialize with enhanced property management domain knowledge including predictive analytics"""
+        """Initialize with enhanced property management domain knowledge including ML"""
         domain_docs = [
             """Property Management Best Practices:
             - Regular property inspections should be conducted quarterly
@@ -426,13 +1166,37 @@ class PropertyRAGSystem:
             - Security deposits typically equal 1-2 months rent depending on local laws
             - Monthly rent-to-income ratio should not exceed 30% for qualified tenants""",
             
+            """Customer Churn Prediction and Retention:
+            - Churn prediction models analyze payment history, satisfaction scores, and engagement patterns
+            - Early warning signals include late payments, increased support tickets, and reduced engagement
+            - High-risk customers require immediate intervention with personalized retention strategies
+            - Customer segmentation enables targeted marketing and service delivery
+            - Lifetime value calculations help prioritize retention efforts and resource allocation
+            - Predictive analytics can identify at-risk customers 2-3 months before actual churn""",
+            
+            """Recommendation Systems and Cross-Selling:
+            - Purchase intention models analyze customer behavior and preferences
+            - Cross-selling opportunities include insurance, storage, parking, and premium services
+            - Upselling strategies focus on unit upgrades, extended leases, and service tiers
+            - Personalized pricing based on customer value and payment reliability
+            - Engagement strategies should be tailored to customer segments and preferences
+            - A/B testing helps optimize recommendation algorithms and conversion rates""",
+            
+            """Customer Analytics and Segmentation:
+            - Premium customers: High LTV, excellent payment history, high satisfaction
+            - At-risk customers: Late payments, complaints, low engagement
+            - Growth potential: Good payment history but low current spend
+            - New customers: Require onboarding and early satisfaction monitoring
+            - Customer journey mapping identifies key touchpoints and improvement opportunities
+            - Behavioral analytics reveal usage patterns and preference trends""",
+            
             """Predictive Analytics for Property Management:
             - Occupancy forecasting uses seasonal patterns, local economic indicators, and historical data
             - Maintenance prediction models analyze equipment age, usage patterns, and failure history
             - Rent optimization considers market comparables, tenant quality, and demand patterns
             - Cash flow forecasting incorporates collection rates, vacancy predictions, and expense trends
-            - Tenant churn prediction uses payment history, lease terms, and satisfaction indicators
-            - Market analysis includes demographic trends, employment data, and development patterns""",
+            - Market analysis includes demographic trends, employment data, and development patterns
+            - Machine learning models improve accuracy with more data and feedback loops""",
             
             """Strategic Planning Frameworks:
             - Portfolio diversification reduces concentration risk across property types and locations
@@ -440,23 +1204,25 @@ class PropertyRAGSystem:
             - Risk management includes insurance coverage, reserve funds, and scenario planning
             - Market positioning analysis compares amenities, pricing, and service levels
             - Growth strategies may include acquisition, development, or value-add improvements
-            - Technology adoption can improve operational efficiency and tenant satisfaction""",
+            - Technology adoption can improve operational efficiency and customer satisfaction""",
             
             """Key Performance Indicators and Benchmarks:
             - Occupancy rate targets: 95-98% for stabilized properties
             - Rent collection rate: 98%+ considered excellent, 95%+ acceptable
-            - Tenant turnover: <10% annually for residential, varies by market
+            - Customer churn rate: <5% monthly for residential, varies by market
+            - Net Promoter Score: 50+ considered good, 70+ excellent
+            - Customer lifetime value: Should be 3-5x annual revenue per customer
             - Maintenance cost ratio: 15-25% of gross rental income
-            - Net Operating Income (NOI) margins: 60-80% for well-managed properties
-            - Cash-on-cash returns: 8-12% typical for investment properties""",
+            - Net Operating Income (NOI) margins: 60-80% for well-managed properties""",
             
-            """Common SQL Patterns for Analytics:
-            - Occupancy trends: Track status changes over time with date filters
-            - Payment patterns: Analyze collection rates, late payments, and seasonal variations
-            - Maintenance forecasting: Group tickets by category, priority, and resolution time
-            - Tenant lifecycle: Track move-ins, renewals, and move-outs by period
-            - Revenue optimization: Compare actual vs market rents, identify opportunities
-            - Cost analysis: Track maintenance, utility, and operational costs by property"""
+            """Machine Learning Applications in Property Management:
+            - Predictive models for maintenance scheduling and cost optimization
+            - Dynamic pricing algorithms based on market conditions and customer segments
+            - Automated tenant screening using credit, employment, and behavioral data
+            - Sentiment analysis of customer feedback and reviews
+            - Computer vision for property condition assessment and maintenance needs
+            - Natural language processing for automated customer service and support
+            - Recommendation engines for personalized service offerings and upgrades"""
         ]
         
         # Create document objects
@@ -539,7 +1305,6 @@ class PropertyRAGSystem:
         
         return domain_context, conversation_context
 
-# Session Management Functions (same as before)
 def save_sessions_to_disk(agent, filepath: str = "sessions.json"):
     """Save all sessions to disk for persistence"""
     sessions_data = {}
@@ -591,7 +1356,6 @@ def load_sessions_from_disk(agent, filepath: str = "sessions.json"):
                 conversation_summary=session_info.get("conversation_summary", ""),
                 learned_patterns=session_info.get("learned_patterns", {})
             )
-            
             for turn_data in session_info.get("turns", []):
                 turn = ConversationTurn(
                     timestamp=datetime.fromisoformat(turn_data["timestamp"]),
@@ -631,7 +1395,7 @@ def get_session_summary(memory: ConversationMemory) -> dict:
     }
 
 class PropertyManagementAgent:
-    """Enhanced agentic AI system with predictive analytics and strategic thinking"""
+    """Enhanced agentic AI system with ML predictions and recommendation engine"""
     
     def __init__(self, rag_system: PropertyRAGSystem):
         self.rag_system = rag_system
@@ -648,28 +1412,46 @@ class PropertyManagementAgent:
     
     def _get_system_prompt(self) -> str:
         return """
-        You are an expert Property Management AI Agent with advanced memory, predictive analytics, and strategic thinking capabilities.
+        You are an expert Property Management AI Agent with advanced machine learning capabilities including customer churn prediction, recommendation systems, and strategic analytics.
         
         CORE CAPABILITIES:
         - Generate and execute SQL queries for property management databases
         - Maintain conversation context and memory across multiple turns
         - Perform predictive analytics and forecasting
         - Conduct strategic analysis and scenario planning
+        - Predict customer churn and recommend retention strategies
+        - Generate personalized recommendations and cross-selling opportunities
+        - Customer segmentation and lifetime value analysis
         - Provide data-driven insights and recommendations
         
+        MACHINE LEARNING CAPABILITIES:
+        - Customer churn prediction using payment history, satisfaction scores, and engagement patterns
+        - Purchase intention modeling for cross-sell and upsell opportunities
+        - Customer segmentation based on behavior, value, and risk profiles
+        - Lifetime value calculation and prediction
+        - Personalized pricing optimization
+        - Recommendation engine for services, upgrades, and engagement strategies
+        
+        CUSTOMER ANALYTICS:
+        - Segment customers into Premium, Standard, At-Risk, High-Value, Growth Potential, Loyal, New Customer
+        - Predict churn probability with confidence scores and time-to-churn estimates
+        - Identify key risk factors and generate personalized retention strategies
+        - Recommend optimal pricing, cross-sell opportunities, and engagement approaches
+        - Calculate customer lifetime value and predict future value potential
+        
         PREDICTIVE ANALYTICS:
-        - Occupancy forecasting based on historical patterns
+        - Occupancy forecasting based on historical patterns and market indicators
         - Maintenance prediction using equipment and category analysis
-        - Cash flow projections with risk assessment
+        - Cash flow projections with risk assessment and collection rate prediction
         - Market trend analysis and competitive positioning
-        - Tenant churn prediction and retention strategies
+        - Revenue optimization through dynamic pricing and service recommendations
         
         STRATEGIC THINKING:
         - Portfolio optimization and diversification analysis
-        - Growth opportunity identification
-        - Risk assessment and mitigation planning
-        - Scenario planning for different market conditions
-        - Investment prioritization and resource allocation
+        - Growth opportunity identification with customer-centric approach
+        - Risk assessment and mitigation planning including customer churn risks
+        - Scenario planning for different market conditions and customer behavior changes
+        - Investment prioritization and resource allocation based on customer value
         
         DATABASE SCHEMA:
         - tenants(id, timestamp, first_name, last_name, email, phone, date_of_birth, created_at)
@@ -686,13 +1468,16 @@ class PropertyManagementAgent:
         - Suggest actionable recommendations based on insights
         - Consider multiple scenarios when appropriate
         - Use data visualization suggestions when helpful
+        - For customer analytics, always consider both individual and portfolio-level insights
+        - Prioritize customer retention and lifetime value optimization
         
         When performing predictive analysis, always:
-        1. Explain your methodology
+        1. Explain your methodology including ML approach
         2. State your assumptions clearly
         3. Provide confidence intervals or levels
         4. Suggest data improvements for better accuracy
         5. Include risk factors and limitations
+        6. Consider customer segmentation in recommendations
         """
     
     def get_or_create_memory(self, session_id: str) -> ConversationMemory:
@@ -711,7 +1496,7 @@ class PropertyManagementAgent:
         return self.memory_store[session_id]
     
     def process_query(self, user_query: str, db_path: str, session_id: str = "default") -> Dict[str, Any]:
-        """Main processing pipeline with predictive analytics and strategic thinking"""
+        """Main processing pipeline with enhanced ML capabilities"""
         
         # Get conversation memory
         memory = self.get_or_create_memory(session_id)
@@ -728,26 +1513,23 @@ class PropertyManagementAgent:
         # Retrieve relevant context
         domain_context, conversation_context = self.rag_system.retrieve_context(resolved_query, memory)
         
-        # Classify query type with enhanced predictive/strategic detection
+        # Enhanced query classification with ML capabilities
         query_type = self._classify_intent(resolved_query, memory)
         
-        # Process based on type
-        if query_type == QueryType.PREDICTIVE_ANALYSIS:
-            result = self._handle_predictive_analysis(resolved_query, user_query, db_path, memory, domain_context, conversation_context)
-        elif query_type == QueryType.STRATEGIC_THINKING:
-            result = self._handle_strategic_thinking(resolved_query, user_query, db_path, memory, domain_context, conversation_context)
-        elif query_type == QueryType.SCENARIO_PLANNING:
-            result = self._handle_scenario_planning(resolved_query, user_query, db_path, memory, domain_context, conversation_context)
-        elif query_type == QueryType.FOLLOWUP_QUESTION:
-            result = self._handle_followup_question(resolved_query, user_query, db_path, memory, domain_context, conversation_context)
-        elif query_type == QueryType.SQL_QUERY:
-            result = self._handle_sql_query(resolved_query, db_path, memory, domain_context, conversation_context)
-        elif query_type == QueryType.TREND_ANALYSIS:
-            result = self._handle_trend_analysis(resolved_query, db_path, memory, domain_context, conversation_context)
+        # Process based on type with enhanced ML capabilities
+        if query_type == QueryType.CHURN_PREDICTION:
+            result = self._handle_churn_prediction(resolved_query, user_query, db_path, memory, domain_context, conversation_context)
+        elif query_type == QueryType.RECOMMENDATION_SYSTEM:
+            result = self._handle_recommendation_system(resolved_query, user_query, db_path, memory, domain_context, conversation_context)
+        elif query_type == QueryType.CUSTOMER_SEGMENTATION:
+            result = self._handle_customer_segmentation(resolved_query, user_query, db_path, memory, domain_context, conversation_context)
+        elif query_type == QueryType.LIFETIME_VALUE:
+            result = self._handle_lifetime_value_analysis(resolved_query, user_query, db_path, memory, domain_context, conversation_context)
         else:
+            # Handle other query types with simplified implementations
             result = self._handle_general_query(resolved_query, db_path, memory, domain_context, conversation_context)
         
-        # Create conversation turn with predictive insights
+        # Create conversation turn with enhanced insights
         turn = ConversationTurn(
             timestamp=datetime.now(),
             user_query=user_query,
@@ -776,745 +1558,485 @@ class PropertyManagementAgent:
         return result
     
     def _classify_intent(self, query: str, memory: ConversationMemory) -> QueryType:
-        """Enhanced intent classification including predictive and strategic queries"""
+        """Enhanced intent classification including ML capabilities"""
         
-        # Keywords for predictive analysis
-        predictive_keywords = [
-            'predict', 'forecast', 'projection', 'future', 'trend', 'expected',
-            'will be', 'anticipate', 'estimate', 'likely', 'next month', 'next year',
-            'upcoming', 'outlook', 'what if', 'scenario'
+        # Keywords for churn prediction
+        churn_keywords = [
+            'churn', 'leaving', 'cancel', 'retention', 'at risk', 'likely to leave',
+            'probability of leaving', 'who might leave', 'customer risk'
         ]
         
-        # Keywords for strategic thinking
-        strategic_keywords = [
-            'strategy', 'strategic', 'planning', 'growth', 'opportunity', 'risk',
-            'competitive', 'market position', 'portfolio', 'investment', 'optimize',
-            'improve', 'recommendation', 'should we', 'best approach', 'options'
+        # Keywords for recommendation system
+        recommendation_keywords = [
+            'recommend', 'suggest', 'cross sell', 'upsell', 'purchase intention',
+            'what should we offer', 'opportunities', 'personalized', 'targeting'
         ]
         
-        # Keywords for scenario planning
-        scenario_keywords = [
-            'scenario', 'what if', 'alternatives', 'different outcomes', 'worst case',
-            'best case', 'contingency', 'prepare for', 'multiple options', 'compare options'
+        # Keywords for customer segmentation
+        segmentation_keywords = [
+            'segment', 'customer types', 'categorize customers', 'customer groups',
+            'premium customers', 'high value', 'customer analysis'
+        ]
+        
+        # Keywords for lifetime value
+        ltv_keywords = [
+            'lifetime value', 'ltv', 'customer value', 'long term value',
+            'customer worth', 'revenue per customer'
         ]
         
         query_lower = query.lower()
         
-        # Check for predictive analysis
-        if any(keyword in query_lower for keyword in predictive_keywords):
-            return QueryType.PREDICTIVE_ANALYSIS
+        # Check for ML-specific query types first
+        if any(keyword in query_lower for keyword in churn_keywords):
+            return QueryType.CHURN_PREDICTION
         
-        # Check for strategic thinking
-        if any(keyword in query_lower for keyword in strategic_keywords):
-            return QueryType.STRATEGIC_THINKING
+        if any(keyword in query_lower for keyword in recommendation_keywords):
+            return QueryType.RECOMMENDATION_SYSTEM
         
-        # Check for scenario planning
-        if any(keyword in query_lower for keyword in scenario_keywords):
-            return QueryType.SCENARIO_PLANNING
+        if any(keyword in query_lower for keyword in segmentation_keywords):
+            return QueryType.CUSTOMER_SEGMENTATION
         
-        # Check for obvious follow-up patterns
-        followup_indicators = [
-            'who are they', 'what are they', 'show me them', 'show them', 
-            'tell me more', 'more details', 'expand on that', 'show me more',
-            'which ones', 'what about', 'how about', 'and them', 'those too'
-        ]
+        if any(keyword in query_lower for keyword in ltv_keywords):
+            return QueryType.LIFETIME_VALUE
         
-        if any(indicator in query_lower for indicator in followup_indicators):
-            return QueryType.FOLLOWUP_QUESTION
-        
-        # Check if this relates to previous query results
-        if memory.last_query_results is not None and len(memory.turns) > 0:
-            last_turn = memory.turns[-1]
-            
-            # Common follow-up patterns after count queries
-            if 'count' in last_turn.sql_generated.lower() if last_turn.sql_generated else False:
-                detail_words = ['details', 'names', 'list', 'show', 'who', 'which', 'what']
-                if any(word in query_lower for word in detail_words):
-                    return QueryType.FOLLOWUP_QUESTION
-        
-        # Standard classification
-        return QueryType.SQL_QUERY
-    
-    def _handle_predictive_analysis(self, resolved_query: str, original_query: str, db_path: str, 
-                                  memory: ConversationMemory, domain_context: List[str], 
-                                  conversation_context: List[str]) -> Dict[str, Any]:
-        """Handle predictive analysis queries"""
-        
-        try:
-            # First, get relevant data
-            data_query = self._generate_predictive_data_query(resolved_query)
-            
-            conn = sqlite3.connect(db_path)
-            df = pd.read_sql_query(data_query, conn)
-            
-            # Get additional context data
-            portfolio_data = self._get_portfolio_data(conn)
-            conn.close()
-            
-            # Determine prediction type
-            prediction_type = self._determine_prediction_type(resolved_query)
-            
-            # Perform predictive analysis
-            if prediction_type == PredictionType.OCCUPANCY_FORECAST:
-                prediction_result = self.predictive_engine.analyze_occupancy_trends(df)
-                analysis_type = "Occupancy Forecast"
-            elif prediction_type == PredictionType.MAINTENANCE_PREDICTION:
-                prediction_result = self.predictive_engine.predict_maintenance_needs(df)
-                analysis_type = "Maintenance Prediction"
-            elif prediction_type == PredictionType.CASH_FLOW_PROJECTION:
-                leases_df = portfolio_data.get('leases', pd.DataFrame())
-                prediction_result = self.predictive_engine.forecast_cash_flow(df, leases_df)
-                analysis_type = "Cash Flow Forecast"
-            else:
-                prediction_result = {"message": "General predictive analysis performed"}
-                analysis_type = "Predictive Analysis"
-            
-            # Generate thinking process
-            thinking_process = ThinkingProcess(
-                problem_analysis=f"Analyzing {original_query} requires predictive modeling based on historical data patterns.",
-                data_assessment=f"Used {len(df)} records from the database. Data quality: {'Good' if len(df) > 10 else 'Limited'}",
-                methodology=f"Applied statistical analysis and pattern recognition for {prediction_type.value if hasattr(prediction_type, 'value') else 'general'} prediction.",
-                assumptions=[
-                    "Historical patterns will continue",
-                    "No major market disruptions",
-                    "Current operational practices maintained"
-                ],
-                limitations=[
-                    "Limited historical data may affect accuracy",
-                    "External factors not fully accounted for",
-                    "Model assumes stable market conditions"
-                ],
-                alternative_approaches=[
-                    "Machine learning models with more data",
-                    "External market data integration",
-                    "Real-time monitoring and adjustment"
-                ]
-            )
-            
-            # Create predictive insight
-            confidence = prediction_result.get('confidence', 0.6)
-            predictive_insight = PredictiveInsight(
-                prediction_type=prediction_type,
-                confidence_level=confidence,
-                time_horizon="3-12 months",
-                key_metrics=prediction_result,
-                recommendations=prediction_result.get('recommendations', []),
-                risk_factors=prediction_result.get('risk_factors', []),
-                data_quality="good" if len(df) > 20 else "limited"
-            )
-            
-            # Generate comprehensive response
-            response = self._generate_predictive_response(
-                original_query, analysis_type, prediction_result, thinking_process, confidence
-            )
-            
-            # Generate follow-up suggestions
-            suggestions = [
-                "What are the key risk factors?",
-                "How can we improve prediction accuracy?",
-                "What actions should we take based on this forecast?",
-                "Show me the underlying data trends"
-            ]
-            
-            return {
-                "type": "predictive_analysis",
-                "sql": data_query,
-                "results": df,
-                "response": response,
-                "predictive_insights": predictive_insight,
-                "thinking_process": thinking_process,
-                "follow_up_suggestions": suggestions,
-                "success": True,
-                "analysis_type": analysis_type
-            }
-            
-        except Exception as e:
-            return {
-                "type": "predictive_analysis",
-                "error": str(e),
-                "response": f"I encountered an error while performing predictive analysis: {str(e)}",
-                "success": False
-            }
-    
-    def _handle_strategic_thinking(self, resolved_query: str, original_query: str, db_path: str, 
-                                 memory: ConversationMemory, domain_context: List[str], 
-                                 conversation_context: List[str]) -> Dict[str, Any]:
-        """Handle strategic thinking and planning queries"""
-        
-        try:
-            # Get comprehensive portfolio data
-            conn = sqlite3.connect(db_path)
-            portfolio_data = self._get_portfolio_data(conn)
-            conn.close()
-            
-            # Perform strategic analysis
-            strategic_analysis = self.strategic_engine.analyze_market_position(portfolio_data)
-            
-            # Generate thinking process
-            thinking_process = ThinkingProcess(
-                problem_analysis=f"Strategic analysis of '{original_query}' requires comprehensive portfolio assessment and market positioning.",
-                data_assessment=f"Analyzed {len(portfolio_data)} data categories including properties, units, tenants, and financial metrics.",
-                methodology="Applied strategic management frameworks including portfolio analysis, competitive positioning, and growth assessment.",
-                assumptions=[
-                    "Current market conditions remain relatively stable",
-                    "Historical performance indicates future potential",
-                    "Strategic initiatives can be effectively executed"
-                ],
-                limitations=[
-                    "Limited external market data",
-                    "Strategic recommendations require market validation",
-                    "Implementation depends on available resources"
-                ],
-                alternative_approaches=[
-                    "External market research and benchmarking",
-                    "Stakeholder interviews and feedback",
-                    "Pilot testing of strategic initiatives"
-                ]
-            )
-            
-            # Generate strategic response
-            response = self._generate_strategic_response(original_query, strategic_analysis, thinking_process)
-            
-            # Generate strategic follow-up suggestions
-            suggestions = [
-                "What are our biggest competitive advantages?",
-                "Which growth opportunities should we prioritize?",
-                "How do we mitigate the identified risks?",
-                "What investments would give us the highest ROI?"
-            ]
-            
-            return {
-                "type": "strategic_thinking",
-                "results": pd.DataFrame([strategic_analysis]),  # Convert to DataFrame for display
-                "response": response,
-                "thinking_process": thinking_process,
-                "strategic_analysis": strategic_analysis,
-                "follow_up_suggestions": suggestions,
-                "success": True
-            }
-            
-        except Exception as e:
-            return {
-                "type": "strategic_thinking",
-                "error": str(e),
-                "response": f"I encountered an error during strategic analysis: {str(e)}",
-                "success": False
-            }
-    
-    def _handle_scenario_planning(self, resolved_query: str, original_query: str, db_path: str, 
-                                memory: ConversationMemory, domain_context: List[str], 
-                                conversation_context: List[str]) -> Dict[str, Any]:
-        """Handle scenario planning and what-if analysis"""
-        
-        try:
-            # Get current metrics
-            conn = sqlite3.connect(db_path)
-            portfolio_data = self._get_portfolio_data(conn)
-            conn.close()
-            
-            # Calculate current baseline metrics
-            current_metrics = self._calculate_baseline_metrics(portfolio_data)
-            
-            # Generate scenarios
-            scenario_analysis = self.strategic_engine.scenario_planning(current_metrics)
-            
-            # Generate thinking process
-            thinking_process = ThinkingProcess(
-                problem_analysis=f"Scenario planning for '{original_query}' requires modeling multiple future outcomes and their implications.",
-                data_assessment="Used current portfolio metrics as baseline for scenario modeling.",
-                methodology="Applied scenario planning methodology with optimistic, baseline, and pessimistic cases.",
-                assumptions=[
-                    "Each scenario represents a plausible future state",
-                    "Key variables change proportionally",
-                    "Strategic responses can be implemented effectively"
-                ],
-                limitations=[
-                    "Scenarios are simplified models of complex realities",
-                    "Black swan events not accounted for",
-                    "Interdependencies between variables may be underestimated"
-                ],
-                alternative_approaches=[
-                    "Monte Carlo simulation for probability distributions",
-                    "Dynamic scenario modeling with feedback loops",
-                    "Real options analysis for strategic flexibility"
-                ]
-            )
-            
-            # Generate scenario response
-            response = self._generate_scenario_response(original_query, scenario_analysis, current_metrics, thinking_process)
-            
-            # Convert scenarios to DataFrame for display
-            scenarios_df = pd.DataFrame(scenario_analysis['scenarios']).T
-            
-            suggestions = [
-                "Which scenario is most likely?",
-                "How should we prepare for the worst case?",
-                "What early indicators should we monitor?",
-                "Which strategies work across all scenarios?"
-            ]
-            
-            return {
-                "type": "scenario_planning",
-                "results": scenarios_df,
-                "response": response,
-                "thinking_process": thinking_process,
-                "scenario_analysis": scenario_analysis,
-                "follow_up_suggestions": suggestions,
-                "success": True
-            }
-            
-        except Exception as e:
-            return {
-                "type": "scenario_planning",
-                "error": str(e),
-                "response": f"I encountered an error during scenario planning: {str(e)}",
-                "success": False
-            }
-    
-    def _generate_predictive_data_query(self, query: str) -> str:
-        """Generate SQL query to get data needed for prediction"""
-        query_lower = query.lower()
-        
-        if any(word in query_lower for word in ['occupancy', 'vacancy', 'units', 'occupied']):
-            return "SELECT * FROM units ORDER BY created_at DESC"
-        elif any(word in query_lower for word in ['maintenance', 'tickets', 'repairs']):
-            return "SELECT * FROM service_tickets ORDER BY created_at DESC"
-        elif any(word in query_lower for word in ['payment', 'rent', 'income', 'cash flow']):
-            return "SELECT * FROM payments ORDER BY created_at DESC"
-        elif any(word in query_lower for word in ['tenant', 'churn', 'turnover']):
-            return "SELECT * FROM tenants ORDER BY created_at DESC"
-        else:
-            return "SELECT * FROM payments ORDER BY created_at DESC LIMIT 100"
-    
-    def _get_portfolio_data(self, conn) -> Dict[str, pd.DataFrame]:
-        """Get comprehensive portfolio data for analysis"""
-        portfolio_data = {}
-        
-        tables = ['properties', 'units', 'tenants', 'leases', 'payments', 'service_tickets']
-        
-        for table in tables:
-            try:
-                df = pd.read_sql_query(f"SELECT * FROM {table}", conn)
-                portfolio_data[table] = df
-            except:
-                portfolio_data[table] = pd.DataFrame()
-        
-        return portfolio_data
-    
-    def _determine_prediction_type(self, query: str) -> PredictionType:
-        """Determine the type of prediction needed"""
-        query_lower = query.lower()
-        
-        if any(word in query_lower for word in ['occupancy', 'vacancy', 'units']):
-            return PredictionType.OCCUPANCY_FORECAST
-        elif any(word in query_lower for word in ['maintenance', 'repair', 'tickets']):
-            return PredictionType.MAINTENANCE_PREDICTION
-        elif any(word in query_lower for word in ['cash flow', 'income', 'revenue']):
-            return PredictionType.CASH_FLOW_PROJECTION
-        elif any(word in query_lower for word in ['tenant', 'churn', 'turnover']):
-            return PredictionType.TENANT_CHURN
-        elif any(word in query_lower for word in ['rent', 'pricing', 'market']):
-            return PredictionType.RENT_TREND
-        else:
-            return PredictionType.MARKET_ANALYSIS
-    
-    def _calculate_baseline_metrics(self, portfolio_data: Dict[str, pd.DataFrame]) -> Dict[str, Any]:
-        """Calculate current baseline metrics for scenario planning"""
-        metrics = {}
-        
-        try:
-            if 'units' in portfolio_data and not portfolio_data['units'].empty:
-                units_df = portfolio_data['units']
-                total_units = len(units_df)
-                occupied_units = len(units_df[units_df['status'].str.lower().isin(['occupied', 'active'])])
-                metrics['occupancy_rate'] = (occupied_units / total_units) * 100 if total_units > 0 else 0
-                metrics['total_units'] = total_units
-            
-            if 'payments' in portfolio_data and not portfolio_data['payments'].empty:
-                payments_df = portfolio_data['payments']
-                metrics['monthly_revenue'] = payments_df['amount'].sum() / 12 if len(payments_df) > 0 else 0
-                
-                if 'paid_on' in payments_df.columns:
-                    paid_count = len(payments_df[payments_df['paid_on'].notna()])
-                    total_count = len(payments_df)
-                    metrics['collection_rate'] = (paid_count / total_count) * 100 if total_count > 0 else 95
-            
-            if 'service_tickets' in portfolio_data and not portfolio_data['service_tickets'].empty:
-                tickets_df = portfolio_data['service_tickets']
-                metrics['monthly_tickets'] = len(tickets_df) / 12 if len(tickets_df) > 0 else 0
-                
-                if 'priority' in tickets_df.columns:
-                    emergency_count = len(tickets_df[tickets_df['priority'].str.lower() == 'emergency'])
-                    metrics['emergency_rate'] = (emergency_count / len(tickets_df)) * 100 if len(tickets_df) > 0 else 5
-        
-        except Exception as e:
-            metrics['error'] = str(e)
-        
-        return metrics
-    
-    def _generate_predictive_response(self, query: str, analysis_type: str, 
-                                    prediction_result: Dict[str, Any], 
-                                    thinking_process: ThinkingProcess, 
-                                    confidence: float) -> str:
-        """Generate a comprehensive predictive analysis response"""
-        
-        confidence_text = "high" if confidence > 0.8 else "medium" if confidence > 0.6 else "moderate"
-        
-        response = f"""## 🔮 {analysis_type}
-
-**My Analysis Process:**
-{thinking_process.problem_analysis}
-
-**Data Assessment:**
-{thinking_process.data_assessment}
-
-**Methodology:**
-{thinking_process.methodology}
-
-### 📊 Key Predictions
-
-"""
-        
-        # Add specific predictions based on type
-        for key, value in prediction_result.items():
-            if key not in ['error', 'confidence', 'recommendations']:
-                if isinstance(value, (int, float)):
-                    response += f"- **{key.replace('_', ' ').title()}:** {value:,.2f}\n"
-                elif isinstance(value, list) and value:
-                    response += f"- **{key.replace('_', ' ').title()}:** {', '.join(map(str, value))}\n"
-                elif isinstance(value, str):
-                    response += f"- **{key.replace('_', ' ').title()}:** {value}\n"
-        
-        response += f"""
-### 🎯 Confidence Level: {confidence_text.title()} ({confidence:.1%})
-
-**Key Assumptions:**
-"""
-        for assumption in thinking_process.assumptions:
-            response += f"- {assumption}\n"
-        
-        response += "\n**Important Limitations:**\n"
-        for limitation in thinking_process.limitations:
-            response += f"- {limitation}\n"
-        
-        if 'recommendations' in prediction_result and prediction_result['recommendations']:
-            response += "\n### 💡 Recommended Actions:\n"
-            for rec in prediction_result['recommendations']:
-                response += f"- {rec}\n"
-        
-        return response
-    
-    def _generate_strategic_response(self, query: str, strategic_analysis: Dict[str, Any], 
-                                   thinking_process: ThinkingProcess) -> str:
-        """Generate a comprehensive strategic analysis response"""
-        
-        response = f"""## 🎯 Strategic Analysis
-
-**Strategic Question:** {query}
-
-**My Thinking Process:**
-{thinking_process.problem_analysis}
-
-### 📈 Portfolio Assessment
-
-**Current Position:** {strategic_analysis.get('portfolio_strength', 'Unknown')}
-
-"""
-        
-        if strategic_analysis.get('competitive_advantages'):
-            response += "**Competitive Advantages:**\n"
-            for advantage in strategic_analysis['competitive_advantages']:
-                response += f"- ✅ {advantage}\n"
-            response += "\n"
-        
-        if strategic_analysis.get('growth_opportunities'):
-            response += "**Growth Opportunities:**\n"
-            for opportunity in strategic_analysis['growth_opportunities']:
-                response += f"- 🚀 {opportunity}\n"
-            response += "\n"
-        
-        if strategic_analysis.get('strategic_risks'):
-            response += "**Strategic Risks:**\n"
-            for risk in strategic_analysis['strategic_risks']:
-                response += f"- ⚠️ {risk}\n"
-            response += "\n"
-        
-        if strategic_analysis.get('recommendations'):
-            response += "### 💡 Strategic Recommendations:\n"
-            for rec in strategic_analysis['recommendations']:
-                response += f"- {rec}\n"
-        
-        response += f"""
-### 🤔 Methodology & Considerations
-
-**Analysis Framework:** {thinking_process.methodology}
-
-**Key Assumptions:**
-"""
-        for assumption in thinking_process.assumptions:
-            response += f"- {assumption}\n"
-        
-        response += "\n**Alternative Approaches to Consider:**\n"
-        for alternative in thinking_process.alternative_approaches:
-            response += f"- {alternative}\n"
-        
-        return response
-    
-    def _generate_scenario_response(self, query: str, scenario_analysis: Dict[str, Any], 
-                                  current_metrics: Dict[str, Any], 
-                                  thinking_process: ThinkingProcess) -> str:
-        """Generate a comprehensive scenario planning response"""
-        
-        response = f"""## 🎲 Scenario Planning Analysis
-
-**Planning Question:** {query}
-
-**Current Baseline Metrics:**
-"""
-        
-        for metric, value in current_metrics.items():
-            if metric != 'error':
-                response += f"- **{metric.replace('_', ' ').title()}:** {value:,.2f}\n"
-        
-        response += f"""
-### 📊 Three Scenarios Analyzed
-
-**My Methodology:** {thinking_process.methodology}
-
-"""
-        
-        scenarios = scenario_analysis.get('scenarios', {})
-        for scenario_name, scenario_data in scenarios.items():
-            response += f"""
-**{scenario_name.title()} Scenario:**
-- *{scenario_data.get('description', 'No description')}*
-- Occupancy Impact: {scenario_data.get('occupancy_change', 'N/A')}
-- Rent Impact: {scenario_data.get('rent_change', 'N/A')}
-- Maintenance Impact: {scenario_data.get('maintenance_change', 'N/A')}
-- **Recommended Strategy:** {scenario_data.get('strategy', 'No strategy defined')}
-
-"""
-        
-        response += "### 🛡️ Preparation Strategies\n"
-        for prep in scenario_analysis.get('recommended_preparations', []):
-            response += f"- {prep}\n"
-        
-        response += "\n### 📊 Key Indicators to Monitor\n"
-        for indicator in scenario_analysis.get('key_indicators_to_monitor', []):
-            response += f"- {indicator}\n"
-        
-        response += f"""
-### 🤔 Analysis Considerations
-
-**Key Assumptions:**
-"""
-        for assumption in thinking_process.assumptions:
-            response += f"- {assumption}\n"
-        
-        response += "\n**Limitations of This Analysis:**\n"
-        for limitation in thinking_process.limitations:
-            response += f"- {limitation}\n"
-        
-        return response
+        # Default to general query
+        return QueryType.GENERAL_QUERY
     
     def _learn_patterns(self, turn: ConversationTurn, memory: ConversationMemory):
-        """Learn patterns from user interactions for future predictions"""
+        """Enhanced pattern learning including ML insights"""
         
         # Learn user preferences and common query patterns
-        if turn.query_type in [QueryType.PREDICTIVE_ANALYSIS, QueryType.STRATEGIC_THINKING]:
+        if turn.query_type in [QueryType.CHURN_PREDICTION, QueryType.RECOMMENDATION_SYSTEM, 
+                              QueryType.CUSTOMER_SEGMENTATION, QueryType.LIFETIME_VALUE]:
             
-            # Track what types of predictions users ask for
-            prediction_patterns = memory.learned_patterns.get('prediction_types', [])
-            prediction_patterns.append(turn.query_type.value)
-            memory.learned_patterns['prediction_types'] = prediction_patterns[-10:]  # Keep last 10
+            # Track what types of ML queries users ask for
+            ml_patterns = memory.learned_patterns.get('ml_query_types', [])
+            ml_patterns.append(turn.query_type.value)
+            memory.learned_patterns['ml_query_types'] = ml_patterns[-10:]  # Keep last 10
             
-            # Track entities mentioned in predictive queries
-            entity_patterns = memory.learned_patterns.get('entities_in_predictions', {})
+            # Track entities mentioned in ML queries
+            entity_patterns = memory.learned_patterns.get('entities_in_ml', {})
             for entity in turn.entities_mentioned:
                 entity_patterns[entity] = entity_patterns.get(entity, 0) + 1
-            memory.learned_patterns['entities_in_predictions'] = entity_patterns
-            
-            # Learn from successful predictions
-            if turn.predictive_insights and turn.predictive_insights.confidence_level > 0.7:
-                successful_patterns = memory.learned_patterns.get('successful_prediction_patterns', [])
-                successful_patterns.append({
-                    'query_pattern': turn.user_query[:50],
-                    'prediction_type': turn.predictive_insights.prediction_type.value,
-                    'confidence': turn.predictive_insights.confidence_level
-                })
-                memory.learned_patterns['successful_prediction_patterns'] = successful_patterns[-5:]
-    
-    def _handle_followup_question(self, resolved_query: str, original_query: str, db_path: str, 
-                                memory: ConversationMemory, domain_context: List[str], 
-                                conversation_context: List[str]) -> Dict[str, Any]:
-        """Handle follow-up questions using conversation context"""
-        
-        if not memory.turns or memory.last_query_results is None:
-            return {
-                "type": "followup_question",
-                "response": "I don't have previous query results to expand on. Please ask a specific question about your property data.",
-                "success": False
-            }
-        
-        last_turn = memory.turns[-1]
-        last_results = memory.last_query_results
-        
-        # Generate follow-up SQL based on previous query and current request
-        followup_prompt = f"""
-        Previous query: {last_turn.user_query}
-        Previous SQL: {last_turn.sql_generated}
-        Previous results summary: {len(last_results)} rows returned
-        Previous results columns: {list(last_results.columns) if not last_results.empty else 'No results'}
-        
-        Current follow-up question: {original_query}
-        Resolved query: {resolved_query}
-        
-        Context: {' '.join(domain_context[:2])}
-        
-        Generate a SQL query that answers the follow-up question based on the previous context.
-        If the previous query was a count/aggregate, now show the detailed records.
-        If it was a list, now show more details or filter further.
-        
-        Return only valid SQLite SQL.
-        """
+            memory.learned_patterns['entities_in_ml'] = entity_patterns
+
+# enhanced_property_agent_with_ml_predictions.py - PART 7
+# ML Query Handlers (continuation of PropertyManagementAgent class)
+
+    def _handle_churn_prediction(self, resolved_query: str, original_query: str, db_path: str, 
+                               memory: ConversationMemory, domain_context: List[str], 
+                               conversation_context: List[str]) -> Dict[str, Any]:
+        """Handle customer churn prediction queries"""
         
         try:
-            sql_response = self.model.generate_content(followup_prompt)
-            sql = self._clean_sql(sql_response.text)
-            
-            # Execute query
+            # Get customer data
             conn = sqlite3.connect(db_path)
-            df = pd.read_sql_query(sql, conn)
+            customers_df = pd.read_sql_query("SELECT * FROM tenants", conn)
+            payments_df = pd.read_sql_query("SELECT * FROM payments", conn)
+            tickets_df = pd.read_sql_query("SELECT * FROM service_tickets", conn)
             conn.close()
             
-            # Generate contextual response
-            response_prompt = f"""
-            This is a follow-up to: "{last_turn.user_query}"
-            Current question: "{original_query}"
-            
-            Previous results: {len(last_results)} records
-            Current results: {len(df)} records
-            Current data: {df.head(3).to_dict() if not df.empty else 'No results'}
-            
-            Provide a conversational response that connects this to the previous query.
-            Explain how this expands on or relates to the previous information.
-            """
-            
-            response_gen = self.model.generate_content(response_prompt)
-            response_text = response_gen.text
-            
-            # Generate follow-up suggestions
-            suggestions = self._generate_followup_suggestions(df, original_query)
-            
-            return {
-                "type": "followup_question",
-                "sql": sql,
-                "results": df,
-                "response": response_text,
-                "follow_up_suggestions": suggestions,
-                "success": True,
-                "context_connection": f"Following up on: {last_turn.user_query}"
-            }
-            
-        except Exception as e:
-            return {
-                "type": "followup_question",
-                "error": str(e),
-                "response": f"I had trouble processing your follow-up question: {str(e)}",
-                "success": False
-            }
-    
-    def _handle_sql_query(self, query: str, db_path: str, memory: ConversationMemory,
-                         domain_context: List[str], conversation_context: List[str]) -> Dict[str, Any]:
-        """Enhanced SQL query handling with memory context"""
-        
-        # Include conversation context in SQL generation
-        context_info = ""
-        if conversation_context:
-            context_info = f"Conversation context: {' '.join(conversation_context[:2])}"
-        
-        sql_prompt = f"""
-        {context_info}
-        Domain knowledge: {' '.join(domain_context[:2])}
-        
-        Generate SQL for: {query}
-        
-        Consider any active filters or context from the conversation.
-        Return only valid SQLite SQL.
-        """
-        
-        try:
-            sql_response = self.model.generate_content(sql_prompt)
-            sql = self._clean_sql(sql_response.text)
-            
-            # Execute query
-            conn = sqlite3.connect(db_path)
-            df = pd.read_sql_query(sql, conn)
-            conn.close()
-            
-            # Generate insights with conversation context
-            insights = self._generate_contextual_insights(query, sql, df, memory, domain_context)
-            
-            # Generate follow-up suggestions
-            suggestions = self._generate_followup_suggestions(df, query)
-            
-            return {
-                "type": "sql_query",
-                "sql": sql,
-                "results": df,
-                "insights": insights,
-                "follow_up_suggestions": suggestions,
-                "success": True
-            }
-            
-        except Exception as e:
-            return {
-                "type": "sql_query",
-                "sql": sql if 'sql' in locals() else "Error generating SQL",
-                "error": str(e),
-                "success": False
-            }
-    
-    def _handle_trend_analysis(self, query: str, db_path: str, memory: ConversationMemory,
-                             domain_context: List[str], conversation_context: List[str]) -> Dict[str, Any]:
-        """Handle trend analysis with enhanced analytics"""
-        
-        try:
-            # Get time-series data for trend analysis
-            trend_query = self._generate_trend_query(query)
-            
-            conn = sqlite3.connect(db_path)
-            df = pd.read_sql_query(trend_query, conn)
-            conn.close()
-            
-            # Perform trend analysis
-            trend_insights = self._analyze_trends(df, query)
+            # Perform churn prediction
+            churn_analysis = self.predictive_engine.predict_customer_churn_batch(
+                customers_df, payments_df, tickets_df
+            )
             
             # Generate response
-            response = self._generate_trend_response(query, trend_insights, df)
+            response = f"""## 🚨 Customer Churn Prediction Analysis
+
+**Analysis Question:** {original_query}
+
+### 📊 Churn Risk Overview
+
+**Customers Analyzed:** {churn_analysis['total_customers_analyzed']}
+**High-Risk Customers:** {churn_analysis['high_risk_customers']} 
+**Average Churn Probability:** {churn_analysis['average_churn_probability']:.1%}
+**Predicted Monthly Churn:** {churn_analysis['predicted_monthly_churn']} customers
+
+### 🎯 Priority Customers for Immediate Attention
+"""
+            
+            if churn_analysis.get('retention_priority'):
+                for i, customer in enumerate(churn_analysis['retention_priority'][:3], 1):
+                    response += f"""
+**{i}. Customer {customer.customer_id}**
+- 🔴 Churn Risk: {customer.churn_probability:.1%} ({customer.risk_level.upper()})
+- ⏰ Estimated Time to Churn: {customer.time_to_churn}
+- ⚠️ Key Risk Factors: {', '.join(customer.key_risk_factors[:2])}
+- 💡 Top Retention Strategy: {customer.retention_recommendations[0] if customer.retention_recommendations else 'Immediate personal outreach'}
+"""
+            
+            response += """
+### 🛡️ Recommended Actions
+
+**Immediate (Next 7 Days):**
+- Contact all CRITICAL risk customers with personalized outreach
+- Review specific risk factors for HIGH risk customers
+- Implement automated early warning system
+
+**Medium-term (Next 30 Days):**
+- Launch satisfaction improvement program
+- Develop loyalty incentives for medium-risk customers
+- Establish regular check-in protocols
+"""
+            
+            # Create results DataFrame for display
+            if churn_analysis.get('churn_predictions'):
+                churn_df = pd.DataFrame([
+                    {
+                        'Customer ID': p.customer_id,
+                        'Churn Probability': f"{p.churn_probability:.2%}",
+                        'Risk Level': p.risk_level.title(),
+                        'Time to Churn': p.time_to_churn,
+                        'Key Risk Factors': '; '.join(p.key_risk_factors[:2]),
+                        'Confidence': f"{p.confidence_score:.2%}"
+                    }
+                    for p in churn_analysis['churn_predictions'][:10]  # Top 10
+                ])
+            else:
+                churn_df = pd.DataFrame()
             
             suggestions = [
-                "What factors are driving these trends?",
-                "How do these trends compare to industry benchmarks?",
-                "What should we do to improve these metrics?",
-                "Can you predict future trends?"
+                "Show me retention strategies for high-risk customers",
+                "What are the main factors driving churn?",
+                "How can we improve customer satisfaction scores?",
+                "Generate personalized retention campaigns"
             ]
             
             return {
-                "type": "trend_analysis",
-                "sql": trend_query,
-                "results": df,
+                "type": "churn_prediction",
+                "results": churn_df,
                 "response": response,
-                "trend_insights": trend_insights,
+                "churn_analysis": churn_analysis,
                 "follow_up_suggestions": suggestions,
                 "success": True
             }
             
         except Exception as e:
             return {
-                "type": "trend_analysis",
+                "type": "churn_prediction",
                 "error": str(e),
-                "response": f"I encountered an error during trend analysis: {str(e)}",
+                "response": f"I encountered an error during churn prediction analysis: {str(e)}",
+                "success": False
+            }
+    
+    def _handle_recommendation_system(self, resolved_query: str, original_query: str, db_path: str, 
+                                    memory: ConversationMemory, domain_context: List[str], 
+                                    conversation_context: List[str]) -> Dict[str, Any]:
+        """Handle recommendation system and cross-selling queries"""
+        
+        try:
+            # Get comprehensive customer data
+            conn = sqlite3.connect(db_path)
+            customers_df = pd.read_sql_query("SELECT * FROM tenants", conn)
+            payments_df = pd.read_sql_query("SELECT * FROM payments", conn)
+            leases_df = pd.read_sql_query("SELECT * FROM leases", conn)
+            tickets_df = pd.read_sql_query("SELECT * FROM service_tickets", conn)
+            conn.close()
+            
+            # Generate recommendations
+            recommendation_analysis = self.predictive_engine.generate_customer_recommendations_batch(
+                customers_df, payments_df, leases_df, tickets_df
+            )
+            
+            # Generate response
+            response = f"""## 🎯 Personalized Recommendation Analysis
+
+**Question:** {original_query}
+
+### 📊 Opportunity Overview
+
+**Customers Analyzed:** {recommendation_analysis['total_customers_analyzed']}
+**High-Potential Customers:** {recommendation_analysis['high_potential_customers']}
+**Revenue Optimization Opportunity:** ${recommendation_analysis['revenue_optimization_opportunity']:,.2f}
+
+### 🚀 Top Revenue Opportunities
+"""
+            
+            if recommendation_analysis.get('priority_recommendations'):
+                for i, rec in enumerate(recommendation_analysis['priority_recommendations'][:3], 1):
+                    response += f"""
+**{i}. Customer {rec.customer_id}**
+- 🎯 Purchase Probability: {rec.purchase_probability:.1%}
+- 💰 Optimal Pricing: ${rec.optimal_pricing:.2f} if rec.optimal_pricing else "N/A"}
+- 🔄 Top Cross-sell: {rec.cross_sell_opportunities[0] if rec.cross_sell_opportunities else 'N/A'}
+- ⬆️ Upsell Opportunity: {rec.upsell_opportunities[0] if rec.upsell_opportunities else 'N/A'}
+"""
+            
+            response += """
+### 💡 Strategic Recommendations
+
+**Cross-Selling Priorities:**
+1. **Premium Maintenance Packages** - High satisfaction correlation
+2. **Renter's Insurance Partnerships** - Low effort, steady revenue
+3. **Storage and Parking Upgrades** - Natural upsell opportunities
+4. **Concierge Services** - Premium tier differentiation
+
+**Implementation Roadmap:**
+- **Phase 1:** Contact top 5 high-probability customers
+- **Phase 2:** Deploy segmented marketing campaigns  
+- **Phase 3:** Optimize based on results and feedback
+"""
+            
+            # Create results DataFrame
+            if recommendation_analysis.get('recommendations'):
+                rec_df = pd.DataFrame([
+                    {
+                        'Customer ID': r.customer_id,
+                        'Purchase Probability': f"{r.purchase_probability:.2%}",
+                        'Top Recommendation': r.recommended_actions[0] if r.recommended_actions else 'N/A',
+                        'Cross-sell Opportunity': r.cross_sell_opportunities[0] if r.cross_sell_opportunities else 'N/A',
+                        'Optimal Pricing': f"${r.optimal_pricing:.2f}" if r.optimal_pricing else 'N/A',
+                        'Confidence': f"{r.confidence_score:.2%}"
+                    }
+                    for r in recommendation_analysis['recommendations'][:10]  # Top 10
+                ])
+            else:
+                rec_df = pd.DataFrame()
+            
+            suggestions = [
+                "Show me the highest-value opportunities",
+                "What are the best cross-selling products?",
+                "How should we price these recommendations?",
+                "Generate marketing campaigns for these opportunities"
+            ]
+            
+            return {
+                "type": "recommendation_system",
+                "results": rec_df,
+                "response": response,
+                "recommendation_analysis": recommendation_analysis,
+                "follow_up_suggestions": suggestions,
+                "success": True
+            }
+            
+        except Exception as e:
+            return {
+                "type": "recommendation_system",
+                "error": str(e),
+                "response": f"I encountered an error during recommendation analysis: {str(e)}",
+                "success": False
+            }
+    
+    def _handle_customer_segmentation(self, resolved_query: str, original_query: str, db_path: str, 
+                                    memory: ConversationMemory, domain_context: List[str], 
+                                    conversation_context: List[str]) -> Dict[str, Any]:
+        """Handle customer segmentation analysis"""
+        
+        try:
+            # Get customer data
+            conn = sqlite3.connect(db_path)
+            customers_df = pd.read_sql_query("SELECT * FROM tenants", conn)
+            payments_df = pd.read_sql_query("SELECT * FROM payments", conn)
+            conn.close()
+            
+            # Perform customer segmentation
+            customer_insights = self.predictive_engine.customer_analytics.segment_customers(
+                customers_df, payments_df
+            )
+            
+            # Aggregate segment statistics
+            segment_stats = {}
+            for insight in customer_insights:
+                segment = insight.segment.value
+                if segment not in segment_stats:
+                    segment_stats[segment] = {
+                        'count': 0,
+                        'total_ltv': 0,
+                        'avg_satisfaction': 0
+                    }
+                segment_stats[segment]['count'] += 1
+                segment_stats[segment]['total_ltv'] += insight.lifetime_value
+                segment_stats[segment]['avg_satisfaction'] += insight.satisfaction_score
+            
+            # Calculate averages
+            for segment in segment_stats:
+                count = segment_stats[segment]['count']
+                if count > 0:
+                    segment_stats[segment]['avg_ltv'] = segment_stats[segment]['total_ltv'] / count
+                    segment_stats[segment]['avg_satisfaction'] = segment_stats[segment]['avg_satisfaction'] / count
+            
+            # Generate response
+            total_customers = sum([stats['count'] for stats in segment_stats.values()])
+            
+            response = f"""## 👥 Customer Segmentation Analysis
+
+**Segmentation Question:** {original_query}
+
+### 📊 Customer Portfolio Overview
+
+**Total Customers Analyzed:** {total_customers}
+**Segments Identified:** {len(segment_stats)}
+
+### 🎯 Segment Breakdown & Strategies
+"""
+            
+            # Sort segments by total LTV for priority display
+            sorted_segments = sorted(segment_stats.items(), key=lambda x: x[1]['total_ltv'], reverse=True)
+            
+            segment_icons = {
+                'premium': '💎',
+                'high_value': '🌟',
+                'loyal': '❤️',
+                'growth_potential': '🚀',
+                'standard': '👤',
+                'new_customer': '🆕',
+                'budget': '💰',
+                'at_risk': '⚠️'
+            }
+            
+            for segment, stats in sorted_segments:
+                icon = segment_icons.get(segment, '👤')
+                percentage = (stats['count'] / total_customers) * 100 if total_customers > 0 else 0
+                
+                response += f"""
+**{icon} {segment.replace('_', ' ').title()} Segment**
+- **Size:** {stats['count']} customers ({percentage:.1f}% of portfolio)
+- **Avg Lifetime Value:** ${stats['avg_ltv']:,.2f}
+- **Avg Satisfaction:** {stats['avg_satisfaction']:.1%}
+- **Total Portfolio Value:** ${stats['total_ltv']:,.2f}
+"""
+            
+            response += """
+### 💼 Strategic Recommendations by Segment
+
+**Resource Allocation Priorities:**
+1. **Premium/High-Value Segments** - Invest in retention and satisfaction
+2. **At-Risk Segment** - Immediate intervention and recovery programs
+3. **Growth Potential** - Targeted upselling and engagement campaigns
+4. **New Customers** - Excellent onboarding and early satisfaction
+"""
+            
+            # Create results DataFrame
+            segment_df = pd.DataFrame([
+                {
+                    'Segment': segment.replace('_', ' ').title(),
+                    'Customer Count': stats['count'],
+                    'Avg Lifetime Value': f"${stats['avg_ltv']:.2f}",
+                    'Avg Satisfaction': f"{stats['avg_satisfaction']:.2%}",
+                    'Total Portfolio Value': f"${stats['total_ltv']:.2f}"
+                }
+                for segment, stats in segment_stats.items()
+            ])
+            
+            suggestions = [
+                "Show me detailed strategies for each segment",
+                "Which segment has the highest growth potential?",
+                "How should we prioritize our marketing budget?",
+                "What are the key characteristics of premium customers?"
+            ]
+            
+            return {
+                "type": "customer_segmentation",
+                "results": segment_df,
+                "response": response,
+                "segment_stats": segment_stats,
+                "customer_insights": customer_insights,
+                "follow_up_suggestions": suggestions,
+                "success": True
+            }
+            
+        except Exception as e:
+            return {
+                "type": "customer_segmentation",
+                "error": str(e),
+                "response": f"I encountered an error during customer segmentation: {str(e)}",
+                "success": False
+            }
+    
+    def _handle_lifetime_value_analysis(self, resolved_query: str, original_query: str, db_path: str, 
+                                      memory: ConversationMemory, domain_context: List[str], 
+                                      conversation_context: List[str]) -> Dict[str, Any]:
+        """Handle customer lifetime value analysis"""
+        
+        try:
+            # Get customer data
+            conn = sqlite3.connect(db_path)
+            customers_df = pd.read_sql_query("SELECT * FROM tenants", conn)
+            payments_df = pd.read_sql_query("SELECT * FROM payments", conn)
+            conn.close()
+            
+            # Calculate LTV for all customers
+            customer_insights = self.predictive_engine.customer_analytics.segment_customers(
+                customers_df, payments_df
+            )
+            
+            # Aggregate LTV statistics
+            total_ltv = sum([c.lifetime_value for c in customer_insights])
+            avg_ltv = total_ltv / len(customer_insights) if customer_insights else 0
+            predicted_total_ltv = sum([c.predicted_ltv for c in customer_insights])
+            
+            # Generate response
+            response = f"""## 💰 Customer Lifetime Value Analysis
+
+**LTV Analysis Question:** {original_query}
+
+### 📊 Portfolio Value Overview
+
+**Total Portfolio LTV:** ${total_ltv:,.2f}
+**Average Customer LTV:** ${avg_ltv:,.2f}
+**Predicted Future LTV:** ${predicted_total_ltv:,.2f}
+**Growth Potential:** {((predicted_total_ltv - total_ltv) / total_ltv * 100):+.1f}% if total_ltv > 0 else "N/A"
+
+### 🚀 Value Optimization Strategies
+
+**For High-Value Customers:**
+- Implement VIP retention programs with premium services
+- Offer exclusive amenities and personalized experiences
+- Priority customer service and dedicated account management
+
+**For Growth Opportunity Customers:**
+- Analyze barriers to higher engagement and spending
+- Implement value demonstration programs
+- Focus on satisfaction improvement and retention
+
+### 📈 Revenue Optimization Opportunities
+
+**Immediate Actions (0-30 days):**
+1. **High-Value Customer Protection** - Ensure 100% satisfaction for top 20%
+2. **Pricing Strategy Review** - Optimize pricing for value segments
+3. **Churn Prevention** - Implement early warning systems
+
+**Growth Initiatives (30-90 days):**
+1. **Upselling Programs** - Target medium-value customers with 70%+ satisfaction
+2. **Cross-selling Campaigns** - Introduce complementary services
+3. **Value Migration** - Move customers from low to medium value segments
+"""
+            
+            # Create results DataFrame
+            ltv_df = pd.DataFrame([
+                {
+                    'Customer ID': c.customer_id,
+                    'Current LTV': f"${c.lifetime_value:.2f}",
+                    'Predicted LTV': f"${c.predicted_ltv:.2f}",
+                    'Segment': c.segment.value.replace('_', ' ').title(),
+                    'Satisfaction Score': f"{c.satisfaction_score:.2%}",
+                    'Value Category': 'High' if c.lifetime_value > avg_ltv * 2 else 'Medium' if c.lifetime_value >= avg_ltv else 'Low'
+                }
+                for c in sorted(customer_insights, key=lambda x: x.lifetime_value, reverse=True)[:15]  # Top 15
+            ])
+            
+            suggestions = [
+                "Which customers have the highest growth potential?",
+                "How can we increase average customer lifetime value?",
+                "Show me retention strategies for high-value customers",
+                "What factors correlate with high lifetime value?"
+            ]
+            
+            return {
+                "type": "lifetime_value",
+                "results": ltv_df,
+                "response": response,
+                "customer_insights": customer_insights,
+                "follow_up_suggestions": suggestions,
+                "success": True
+            }
+            
+        except Exception as e:
+            return {
+                "type": "lifetime_value",
+                "error": str(e),
+                "response": f"I encountered an error during lifetime value analysis: {str(e)}",
                 "success": False
             }
     
@@ -1527,8 +2049,17 @@ class PropertyManagementAgent:
         Domain context: {' '.join(domain_context)}
         Conversation context: {' '.join(conversation_context[:2])}
         
-        Provide a helpful response about property management.
-        If this seems like it should involve data analysis, suggest a specific approach.
+        Provide a helpful response about property management with ML capabilities.
+        If this involves data analysis, suggest a specific approach.
+        If it involves predictions or strategic thinking, explain how to approach
+
+        general_prompt = f"""
+        Query: {query}
+        Domain context: {' '.join(domain_context)}
+        Conversation context: {' '.join(conversation_context[:2])}
+        
+        Provide a helpful response about property management with ML capabilities.
+        If this involves data analysis, suggest a specific approach.
         If it involves predictions or strategic thinking, explain how to approach it.
         """
         
@@ -1545,395 +2076,9 @@ class PropertyManagementAgent:
                 "response": f"I encountered an error: {str(e)}",
                 "success": False
             }
-    
-    def _generate_trend_query(self, query: str) -> str:
-        """Generate SQL query for trend analysis"""
-        query_lower = query.lower()
-        
-        if any(word in query_lower for word in ['payment', 'rent', 'income']):
-            return """
-            SELECT 
-                DATE(created_at) as date,
-                COUNT(*) as payment_count,
-                SUM(amount) as total_amount,
-                AVG(amount) as avg_amount
-            FROM payments 
-            GROUP BY DATE(created_at)
-            ORDER BY date
-            """
-        elif any(word in query_lower for word in ['maintenance', 'ticket']):
-            return """
-            SELECT 
-                DATE(created_at) as date,
-                COUNT(*) as ticket_count,
-                priority,
-                category
-            FROM service_tickets 
-            GROUP BY DATE(created_at), priority, category
-            ORDER BY date
-            """
-        elif any(word in query_lower for word in ['occupancy', 'vacancy']):
-            return """
-            SELECT 
-                DATE(created_at) as date,
-                status,
-                COUNT(*) as unit_count
-            FROM units 
-            GROUP BY DATE(created_at), status
-            ORDER BY date
-            """
-        else:
-            return """
-            SELECT 
-                DATE(created_at) as date,
-                COUNT(*) as tenant_count
-            FROM tenants 
-            GROUP BY DATE(created_at)
-            ORDER BY date
-            """
-    
-    def _analyze_trends(self, df: pd.DataFrame, query: str) -> Dict[str, Any]:
-        """Analyze trends in the data"""
-        insights = {
-            "trend_direction": "unknown",
-            "trend_strength": "weak",
-            "key_observations": [],
-            "recommendations": []
-        }
-        
-        try:
-            if df.empty:
-                insights["key_observations"].append("No data available for trend analysis")
-                return insights
-            
-            # Basic trend analysis
-            if 'date' in df.columns and len(df) > 1:
-                # Convert date column to datetime if it's not already
-                df['date'] = pd.to_datetime(df['date'])
-                df = df.sort_values('date')
-                
-                # Analyze numeric columns for trends
-                numeric_cols = df.select_dtypes(include=[np.number]).columns
-                
-                for col in numeric_cols:
-                    if col != 'date' and len(df[col].dropna()) > 1:
-                        # Simple trend calculation
-                        values = df[col].dropna()
-                        if len(values) >= 2:
-                            start_val = values.iloc[0]
-                            end_val = values.iloc[-1]
-                            
-                            if end_val > start_val * 1.1:
-                                trend = "increasing"
-                            elif end_val < start_val * 0.9:
-                                trend = "decreasing"
-                            else:
-                                trend = "stable"
-                            
-                            insights["key_observations"].append(
-                                f"{col.replace('_', ' ').title()} trend: {trend}"
-                            )
-                            
-                            # Calculate percentage change
-                            pct_change = ((end_val - start_val) / start_val) * 100 if start_val != 0 else 0
-                            if abs(pct_change) > 20:
-                                insights["trend_strength"] = "strong"
-                                insights["key_observations"].append(
-                                    f"{col.replace('_', ' ').title()} changed by {pct_change:.1f}%"
-                                )
-            
-            # Generate recommendations based on trends
-            if "decreasing" in str(insights["key_observations"]):
-                insights["recommendations"].append("Investigate factors causing declining metrics")
-            if "increasing" in str(insights["key_observations"]):
-                insights["recommendations"].append("Identify what's driving positive trends to replicate")
-            
-        except Exception as e:
-            insights["error"] = str(e)
-        
-        return insights
-    
-    def _generate_trend_response(self, query: str, trend_insights: Dict[str, Any], df: pd.DataFrame) -> str:
-        """Generate a comprehensive trend analysis response"""
-        
-        response = f"""## 📈 Trend Analysis
 
-**Analysis Period:** {len(df)} data points analyzed
-
-### Key Findings
-
-**Overall Trend Strength:** {trend_insights.get('trend_strength', 'Unknown').title()}
-
-**Key Observations:**
-"""
-        
-        for observation in trend_insights.get('key_observations', []):
-            response += f"- {observation}\n"
-        
-        if not trend_insights.get('key_observations'):
-            response += "- Limited data available for comprehensive trend analysis\n"
-        
-        if trend_insights.get('recommendations'):
-            response += "\n### 💡 Recommendations:\n"
-            for rec in trend_insights['recommendations']:
-                response += f"- {rec}\n"
-        
-        response += f"""
-### 📊 Data Summary
-- **Records Analyzed:** {len(df)}
-- **Date Range:** {df['date'].min()} to {df['date'].max() if 'date' in df.columns and not df.empty else 'N/A'}
-
-*Note: This analysis is based on available historical data. For more accurate trends, consider expanding the data collection period and including external market factors.*
-"""
-        
-        return response
-    
-    def _generate_contextual_insights(self, query: str, sql: str, df: pd.DataFrame, 
-                                    memory: ConversationMemory, domain_context: List[str]) -> str:
-        """Generate humanized, formal insights that directly answer the query"""
-        
-        if df is None or df.empty:
-            return "I wasn't able to find any records matching your criteria. You may want to check if the data exists or try adjusting your search parameters."
-        
-        # For COUNT queries - get the actual count value
-        if len(df) == 1 and len(df.columns) == 1:
-            count_value = df.iloc[0, 0]
-            column_name = df.columns[0].lower()
-            
-            if 'count' in column_name:
-                query_lower = query.lower()
-                
-                if 'tenant' in query_lower:
-                    if count_value == 0:
-                        return "Currently, there are no tenants in your database. This could indicate either an empty property portfolio or that tenant data hasn't been entered yet."
-                    elif count_value == 1:
-                        return "You currently have **1 tenant** in your property management system."
-                    else:
-                        return f"Based on your database records, you currently have **{count_value} tenants** under management."
-                
-                elif 'property' in query_lower or 'properties' in query_lower:
-                    if count_value == 0:
-                        return "No properties are currently recorded in your system."
-                    elif count_value == 1:
-                        return "You have **1 property** in your portfolio."
-                    else:
-                        return f"Your property portfolio consists of **{count_value} properties**."
-                
-                elif 'unit' in query_lower:
-                    if count_value == 0:
-                        return "No units are currently recorded in your system."
-                    elif count_value == 1:
-                        return "You have **1 unit** available in your property management system."
-                    else:
-                        return f"Your property portfolio includes **{count_value} units** across all properties."
-                
-                elif 'payment' in query_lower:
-                    if count_value == 0:
-                        return "No payment records were found matching your criteria."
-                    elif count_value == 1:
-                        return "I found **1 payment record** that matches your query."
-                    else:
-                        return f"There are **{count_value} payment records** that match your search criteria."
-                
-                elif 'maintenance' in query_lower or 'ticket' in query_lower:
-                    if count_value == 0:
-                        return "Great news! There are currently no maintenance tickets in your system."
-                    elif count_value == 1:
-                        return "You have **1 maintenance ticket** that requires attention."
-                    else:
-                        return f"There are currently **{count_value} maintenance tickets** in your system that may require attention."
-                
-                elif 'lease' in query_lower:
-                    if count_value == 0:
-                        return "No lease agreements were found matching your criteria."
-                    elif count_value == 1:
-                        return "I found **1 lease agreement** that matches your query."
-                    else:
-                        return f"There are **{count_value} lease agreements** that match your search criteria."
-                
-                elif 'overdue' in query_lower or 'late' in query_lower:
-                    if count_value == 0:
-                        return "Excellent! You have no overdue payments at this time. All tenants appear to be current with their rent."
-                    elif count_value == 1:
-                        return "You have **1 overdue payment** that requires follow-up."
-                    else:
-                        return f"There are **{count_value} overdue payments** that need your immediate attention."
-                
-                elif 'vacant' in query_lower:
-                    if count_value == 0:
-                        return "Wonderful! All your units are currently occupied. You have achieved 100% occupancy."
-                    elif count_value == 1:
-                        return "You have **1 vacant unit** that is available for new tenants."
-                    else:
-                        return f"You currently have **{count_value} vacant units** available for lease."
-                
-                else:
-                    if count_value == 0:
-                        return "No records were found matching your search criteria."
-                    elif count_value == 1:
-                        return "I found **1 record** that matches your query."
-                    else:
-                        return f"I found **{count_value} records** that match your search criteria."
-        
-        # For detailed queries (multiple rows/columns) - provide context-aware responses
-        insights = []
-        query_lower = query.lower()
-        
-        # Provide meaningful context based on the type of data returned
-        if 'first_name' in df.columns or 'last_name' in df.columns or 'email' in df.columns:
-            if len(df) == 1:
-                insights.append("Here are the details for the tenant you requested:")
-            else:
-                insights.append(f"I've retrieved information for **{len(df)} tenants** as requested:")
-        
-        elif 'property_name' in df.columns or 'address' in df.columns:
-            if len(df) == 1:
-                insights.append("Here are the property details you requested:")
-            else:
-                insights.append(f"I've found **{len(df)} properties** matching your criteria:")
-        
-        elif 'unit_number' in df.columns:
-            if len(df) == 1:
-                insights.append("Here are the unit details:")
-            else:
-                insights.append(f"I've located **{len(df)} units** that match your search:")
-        
-        elif 'amount' in df.columns and 'due_date' in df.columns:
-            if 'overdue' in query_lower:
-                if len(df) == 1:
-                    insights.append("Here is the overdue payment that requires attention:")
-                else:
-                    insights.append(f"I've identified **{len(df)} overdue payments** that need immediate follow-up:")
-            else:
-                if len(df) == 1:
-                    insights.append("Here is the payment record you requested:")
-                else:
-                    insights.append(f"I've found **{len(df)} payment records** matching your criteria:")
-        
-        elif 'description' in df.columns and 'status' in df.columns:
-            if len(df) == 1:
-                insights.append("Here is the maintenance ticket information:")
-            else:
-                insights.append(f"I've found **{len(df)} maintenance tickets** in your system:")
-        
-        else:
-            if len(df) == 1:
-                insights.append("Here is the information you requested:")
-            else:
-                insights.append(f"I've found **{len(df)} records** that match your query:")
-        
-        # Add specific insights based on data content
-        if 'overdue' in query_lower and 'amount' in df.columns:
-            total_overdue = df['amount'].sum()
-            insights.append(f"The total amount overdue is **${total_overdue:,.2f}**.")
-        
-        elif 'vacant' in query_lower and len(df) > 0:
-            insights.append("These units are currently available for new tenant applications.")
-        
-        elif 'maintenance' in query_lower and 'priority' in df.columns:
-            emergency_count = len(df[df['priority'].str.lower() == 'emergency']) if 'priority' in df.columns else 0
-            if emergency_count > 0:
-                insights.append(f"**Important:** {emergency_count} of these tickets are marked as emergency priority.")
-        
-        elif 'payment' in query_lower and 'amount' in df.columns and len(df) > 1:
-            total_amount = df['amount'].sum()
-            avg_amount = df['amount'].mean()
-            insights.append(f"Total amount: **${total_amount:,.2f}** | Average: **${avg_amount:,.2f}**")
-        
-        # Return the formatted response
-        if insights:
-            return "\n\n".join(insights)
-        else:
-            return f"I've successfully retrieved **{len(df)} records** based on your request."
-    
-    def _generate_followup_suggestions(self, df: pd.DataFrame, query: str) -> List[str]:
-        """Generate intelligent follow-up suggestions based on results"""
-        
-        if df is None or df.empty:
-            return ["Try a different search criteria", "Check if the data exists in the database"]
-        
-        suggestions = []
-        columns = df.columns.tolist()
-        
-        # Enhanced suggestions based on result type and columns
-        if 'first_name' in columns or 'last_name' in columns:
-            suggestions.extend([
-                "Show me their contact information",
-                "What are their lease details?",
-                "Predict tenant churn risk for these tenants"
-            ])
-        
-        if 'property_name' in columns or 'address' in columns:
-            suggestions.extend([
-                "How many units are in these properties?",
-                "What's the occupancy forecast?",
-                "Analyze the strategic value of these properties"
-            ])
-        
-        if 'amount' in columns or 'rent_amount' in columns:
-            suggestions.extend([
-                "Forecast future cash flow trends",
-                "Which payments are at risk?",
-                "What's the predicted collection rate?"
-            ])
-        
-        if len(df) > 10:
-            suggestions.append("Show me just the top 5 results")
-        
-        # Query-specific suggestions with predictive elements
-        if 'count' in query.lower():
-            suggestions.extend([
-                "Show me the detailed list",
-                "What trends do you see in this data?"
-            ])
-        elif 'overdue' in query.lower():
-            suggestions.extend([
-                "Predict which tenants are at risk of late payment",
-                "What strategies can reduce payment delays?"
-            ])
-        elif 'vacant' in query.lower():
-            suggestions.extend([
-                "Forecast occupancy rates for next quarter",
-                "What's our competitive position for these units?"
-            ])
-        elif 'maintenance' in query.lower():
-            suggestions.extend([
-                "Predict future maintenance needs",
-                "Which categories need preventive attention?"
-            ])
-        
-        # Add strategic thinking suggestions
-        suggestions.extend([
-            "What strategic insights can you provide?",
-            "How does this compare to industry benchmarks?"
-        ])
-        
-        return suggestions[:4]  # Limit to 4 suggestions
-    
-    def _clean_sql(self, raw_sql: str) -> str:
-        """Clean SQL by removing markdown formatting"""
-        sql = re.sub(r"```[^\n]*\n", "", raw_sql)
-        sql = re.sub(r"\n```", "", sql)
-        return sql.strip()
-    
-    def get_conversation_summary(self, session_id: str) -> str:
-        """Get a summary of the conversation"""
-        if session_id not in self.memory_store:
-            return "No conversation history"
-        
-        memory = self.memory_store[session_id]
-        if not memory.turns:
-            return "No questions asked yet"
-        
-        summary_parts = []
-        for turn in memory.turns[-5:]:  # Last 5 turns
-            summary_parts.append(f"Q: {turn.user_query[:50]}...")
-        
-        return " | ".join(summary_parts)
-
-# Enhanced Streamlit UI with Predictive Analytics Features
-def enhanced_sidebar_with_sessions():
-    """Enhanced sidebar with session management and analytics features"""
+def enhanced_sidebar_with_ml_settings():
+    """Enhanced sidebar with ML and recommendation settings"""
     with st.sidebar:
         st.header("🔧 Configuration")
         
@@ -1948,23 +2093,32 @@ def enhanced_sidebar_with_sessions():
         
         st.divider()
         
-        # Analytics Settings
-        st.header("📊 Analytics Settings")
+        # ML Analytics Settings
+        st.header("🤖 ML Analytics Settings")
         
         analytics_mode = st.selectbox(
             "Default Analysis Mode",
-            ["Basic", "Predictive", "Strategic", "Comprehensive"],
-            index=2,
+            ["Basic", "Predictive", "Strategic", "ML-Enhanced", "Comprehensive"],
+            index=3,
             help="Choose the default level of analysis for your queries"
         )
         
         confidence_threshold = st.slider(
-            "Prediction Confidence Threshold",
+            "ML Prediction Confidence Threshold",
             min_value=0.1,
             max_value=1.0,
             value=0.6,
             step=0.1,
-            help="Minimum confidence level for displaying predictions"
+            help="Minimum confidence level for displaying ML predictions"
+        )
+        
+        churn_risk_threshold = st.slider(
+            "Churn Risk Alert Threshold",
+            min_value=0.1,
+            max_value=1.0,
+            value=0.7,
+            step=0.1,
+            help="Churn probability threshold for high-risk alerts"
         )
         
         show_thinking = st.checkbox(
@@ -1976,12 +2130,34 @@ def enhanced_sidebar_with_sessions():
         st.session_state.analytics_settings = {
             "mode": analytics_mode,
             "confidence_threshold": confidence_threshold,
+            "churn_risk_threshold": churn_risk_threshold,
             "show_thinking": show_thinking
         }
         
         st.divider()
         
-        # Session Management
+        # Customer Analytics Dashboard
+        st.header("👥 Customer Analytics")
+        
+        if st.button("🚨 Churn Risk Dashboard", use_container_width=True):
+            st.session_state.suggested_query = "Predict which customers are at risk of churning"
+            st.rerun()
+        
+        if st.button("🎯 Recommendation Engine", use_container_width=True):
+            st.session_state.suggested_query = "Generate personalized recommendations for all customers"
+            st.rerun()
+        
+        if st.button("📊 Customer Segmentation", use_container_width=True):
+            st.session_state.suggested_query = "Analyze customer segments and provide strategic insights"
+            st.rerun()
+        
+        if st.button("💰 Lifetime Value Analysis", use_container_width=True):
+            st.session_state.suggested_query = "Calculate customer lifetime value and growth opportunities"
+            st.rerun()
+        
+        st.divider()
+        
+        # Session Management (condensed)
         st.header("📚 Session Management")
         
         # Load sessions on startup
@@ -2004,10 +2180,7 @@ def enhanced_sidebar_with_sessions():
         
         with col1:
             if st.button("🆕 New Session", use_container_width=True):
-                # Save current sessions before creating new one
                 save_sessions_to_disk(st.session_state.agent)
-                
-                # Create new session
                 st.session_state.session_id = hashlib.md5(str(datetime.now()).encode()).hexdigest()[:8]
                 st.session_state.conversation_history = []
                 st.success("New session created!")
@@ -2018,59 +2191,13 @@ def enhanced_sidebar_with_sessions():
                 save_sessions_to_disk(st.session_state.agent)
                 st.success("Sessions saved!")
         
-        # Previous Sessions (same as before but condensed for space)
-        if len(st.session_state.agent.memory_store) > 1:
-            st.subheader("📋 Previous Sessions")
-            
-            sessions = []
-            for session_id, memory in st.session_state.agent.memory_store.items():
-                if session_id != st.session_state.session_id and memory.turns:
-                    summary = get_session_summary(memory)
-                    sessions.append((session_id, memory, summary))
-            
-            sessions.sort(key=lambda x: x[2]['last_activity'], reverse=True)
-            
-            for session_id, memory, summary in sessions[:3]:  # Show last 3 sessions
-                with st.expander(f"📄 {summary['title'][:25]}...", expanded=False):
-                    st.write(f"**Questions:** {summary['question_count']}")
-                    st.write(f"**Last:** {summary['last_activity']}")
-                    
-                    col_a, col_b = st.columns(2)
-                    with col_a:
-                        if st.button(f"🔄 Switch", key=f"switch_{session_id}", use_container_width=True):
-                            if st.session_state.session_id in st.session_state.agent.memory_store:
-                                current_mem = st.session_state.agent.memory_store[st.session_state.session_id]
-                                st.session_state.conversation_history = [
-                                    (turn.user_query, turn.ai_response, turn.timestamp)
-                                    for turn in current_mem.turns
-                                ]
-                            
-                            st.session_state.session_id = session_id
-                            
-                            selected_memory = st.session_state.agent.memory_store[session_id]
-                            st.session_state.conversation_history = [
-                                (turn.user_query, turn.ai_response, turn.timestamp)
-                                for turn in selected_memory.turns
-                            ]
-                            
-                            st.success(f"Switched to session {session_id}")
-                            st.rerun()
-                    
-                    with col_b:
-                        if st.button(f"🗑️ Delete", key=f"delete_{session_id}", use_container_width=True):
-                            del st.session_state.agent.memory_store[session_id]
-                            save_sessions_to_disk(st.session_state.agent)
-                            st.success("Deleted!")
-                            st.rerun()
-        
         return db_path
 
-# Main function with enhanced predictive features
 def main():
-    st.set_page_config(page_title="🏠 AI Property Management Assistant", layout="wide")
+    st.set_page_config(page_title="🏠 AI Property Management Assistant with ML", layout="wide")
     
     st.title("🏠 AI Property Management Assistant")
-    st.markdown("*Powered by Predictive Analytics, Strategic AI, and Conversational Memory*")
+    st.markdown("*Powered by Machine Learning: Churn Prediction, Recommendation Engine & Advanced Analytics*")
     
     # Initialize session state
     if 'session_id' not in st.session_state:
@@ -2087,51 +2214,61 @@ def main():
     
     if 'analytics_settings' not in st.session_state:
         st.session_state.analytics_settings = {
-            "mode": "Strategic",
+            "mode": "ML-Enhanced",
             "confidence_threshold": 0.6,
+            "churn_risk_threshold": 0.7,
             "show_thinking": True
         }
     
-    # Enhanced sidebar with predictive analytics settings
-    db_path = enhanced_sidebar_with_sessions()
+    # Enhanced sidebar with ML settings
+    db_path = enhanced_sidebar_with_ml_settings()
     
     # Auto-save sessions periodically
     if len(st.session_state.agent.memory_store) > 0:
         save_sessions_to_disk(st.session_state.agent)
     
-    # Main interface
+    # Main interface with ML capabilities
     st.header("💬 Conversation")
     
-    # Display current session info with analytics capabilities
+    # ML Analytics Overview
+    if st.session_state.analytics_settings["mode"] in ["ML-Enhanced", "Comprehensive"]:
+        with st.expander("🤖 ML Analytics Overview", expanded=False):
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                st.metric("🚨 Churn Risk Threshold", f"{st.session_state.analytics_settings['churn_risk_threshold']:.0%}")
+            with col2:
+                st.metric("🔍 Confidence Level", f"{st.session_state.analytics_settings['confidence_threshold']:.0%}")
+            with col3:
+                st.metric("🧠 AI Mode", st.session_state.analytics_settings["mode"])
+            with col4:
+                st.metric("📊 ML Features", "Active")
+    
+    # Display current session info with ML capabilities
     current_memory = st.session_state.agent.get_or_create_memory(st.session_state.session_id)
     if current_memory.turns:
-        analytics_info = f" | Analytics: {st.session_state.analytics_settings['mode']} Mode"
+        ml_queries = len([t for t in current_memory.turns if t.query_type in [
+            QueryType.CHURN_PREDICTION, QueryType.RECOMMENDATION_SYSTEM, 
+            QueryType.CUSTOMER_SEGMENTATION, QueryType.LIFETIME_VALUE
+        ]])
+        analytics_info = f" | ML Queries: {ml_queries} | Mode: {st.session_state.analytics_settings['mode']}"
         st.caption(f"Session: {st.session_state.session_id} | Questions: {len(current_memory.turns)} | Started: {current_memory.turns[0].timestamp.strftime('%Y-%m-%d %H:%M')}{analytics_info}")
     else:
-        st.caption(f"Session: {st.session_state.session_id} | New session | Analytics: {st.session_state.analytics_settings['mode']} Mode")
+        st.caption(f"Session: {st.session_state.session_id} | New session | Mode: {st.session_state.analytics_settings['mode']}")
     
-    # Display conversation history
-    if st.session_state.conversation_history:
-        with st.expander("📜 Conversation History", expanded=False):
-            for i, (user_msg, ai_response, timestamp) in enumerate(st.session_state.conversation_history):
-                st.write(f"**{timestamp.strftime('%H:%M:%S')} - You:** {user_msg}")
-                st.write(f"**AI:** {ai_response[:200]}...")
-                if i < len(st.session_state.conversation_history) - 1:
-                    st.divider()
-    
-    # Enhanced query input with examples
+    # Enhanced query input with ML examples
     st.subheader("🎯 Ask Your Question")
     
-    # Example queries with predictive/strategic focus
+    # ML-focused example queries
     example_queries = [
-        "How many tenants do we have?",
-        "Predict our occupancy rate for next quarter",
-        "What's our strategic position in the market?",
-        "Analyze cash flow trends and forecast risks",
-        "Show me maintenance tickets and predict future needs",
-        "What scenarios should we plan for?",
-        "Which units are vacant and what's the forecast?",
-        "Strategic recommendations for portfolio growth"
+        "Predict which customers are likely to churn",
+        "Generate personalized recommendations for cross-selling",
+        "Segment customers by value and behavior",
+        "Calculate customer lifetime value and growth potential",
+        "Forecast occupancy trends for next quarter",
+        "What strategic opportunities should we pursue?",
+        "Analyze payment patterns and predict collection risks",
+        "Recommend retention strategies for at-risk customers"
     ]
     
     col1, col2 = st.columns([3, 1])
@@ -2144,22 +2281,22 @@ def main():
         
         query = st.text_area(
             "Your question:",
-            placeholder="e.g., 'Predict our cash flow for next 6 months' or 'What strategic opportunities do we have?'",
+            placeholder="e.g., 'Which customers are at risk of churning?' or 'Generate cross-sell recommendations'",
             height=100,
             value=default_value,
             key=f"current_query_{st.session_state.session_id}"
         )
     
     with col2:
-        st.write("**Example Queries:**")
+        st.write("**ML Example Queries:**")
         for i, example in enumerate(example_queries[:4]):
-            if st.button(f"💡 {example[:30]}...", key=f"example_{i}", use_container_width=True):
+            if st.button(f"🤖 {example[:30]}...", key=f"ml_example_{i}", use_container_width=True):
                 st.session_state.suggested_query = example
                 st.rerun()
     
-    # Process query
+    # Process query with enhanced ML display
     if st.button("🚀 Ask Question", type="primary", use_container_width=True) and query:
-        with st.spinner("🤔 Processing your question with advanced analytics..."):
+        with st.spinner("🤖 Processing your question with ML analytics..."):
             result = st.session_state.agent.process_query(
                 query, 
                 db_path, 
@@ -2168,357 +2305,156 @@ def main():
         
         # Add to conversation history
         timestamp = datetime.now()
-        ai_response = result.get('response', result.get('insights', 'Processed successfully'))
+        ai_response = result.get('response', 'Processed successfully')
         st.session_state.conversation_history.append((query, ai_response, timestamp))
         
-        # Display results based on type with enhanced predictive features
+        # Enhanced display for ML results
         if result["success"]:
             
-            # Show context awareness
-            if result.get("context_connection"):
-                st.info(f"🔗 {result['context_connection']}")
-            
-            # Enhanced display for predictive analysis
-            if result["type"] == "predictive_analysis":
-                st.subheader("🔮 Predictive Analysis Results")
+            # Enhanced display for churn prediction
+            if result["type"] == "churn_prediction":
+                st.subheader("🚨 Customer Churn Prediction")
                 
-                # Show analysis type and confidence
-                analysis_type = result.get("analysis_type", "Predictive Analysis")
-                if result.get("predictive_insights"):
-                    confidence = result["predictive_insights"].confidence_level
-                    confidence_color = "🟢" if confidence > 0.8 else "🟡" if confidence > 0.6 else "🔴"
-                    st.success(f"**{analysis_type}** | Confidence: {confidence_color} {confidence:.1%}")
-                
-                # Show thinking process if enabled
-                if st.session_state.analytics_settings["show_thinking"] and result.get("thinking_process"):
-                    with st.expander("🧠 AI Reasoning Process", expanded=False):
-                        thinking = result["thinking_process"]
-                        st.write("**Problem Analysis:**", thinking.problem_analysis)
-                        st.write("**Data Assessment:**", thinking.data_assessment)
-                        st.write("**Methodology:**", thinking.methodology)
-                        
-                        col_a, col_b = st.columns(2)
-                        with col_a:
-                            st.write("**Key Assumptions:**")
-                            for assumption in thinking.assumptions:
-                                st.write(f"• {assumption}")
-                        with col_b:
-                            st.write("**Limitations:**")
-                            for limitation in thinking.limitations:
-                                st.write(f"• {limitation}")
-                
-                # Show SQL if generated
-                if result.get("sql"):
-                    with st.expander("🔍 Data Query Used"):
-                        st.code(result["sql"], language="sql")
-                
-                # Show results data
-                if result.get("results") is not None and not result["results"].empty:
-                    st.subheader("📊 Underlying Data")
-                    st.dataframe(result["results"], use_container_width=True)
+                # Show churn analysis summary
+                if result.get("churn_analysis"):
+                    churn_data = result["churn_analysis"]
                     
-                    # Enhanced metrics for predictions
                     col1, col2, col3, col4 = st.columns(4)
                     with col1:
-                        st.metric("Data Points", len(result["results"]))
+                        st.metric("Total Customers", churn_data["total_customers_analyzed"])
                     with col2:
-                        st.metric("Variables", len(result["results"].columns))
+                        st.metric("High-Risk Customers", churn_data["high_risk_customers"])
                     with col3:
-                        if result.get("predictive_insights"):
-                            st.metric("Confidence", f"{result['predictive_insights'].confidence_level:.1%}")
+                        st.metric("Avg Churn Probability", f"{churn_data['average_churn_probability']:.1%}")
                     with col4:
-                        if result.get("predictive_insights"):
-                            st.metric("Time Horizon", result["predictive_insights"].time_horizon)
+                        st.metric("Predicted Monthly Churn", churn_data["predicted_monthly_churn"])
+                
+                # Show results table
+                if result.get("results") is not None and not result["results"].empty:
+                    st.subheader("🎯 High-Risk Customers")
+                    st.dataframe(result["results"], use_container_width=True)
                     
                     # Download option
                     csv = result["results"].to_csv(index=False)
                     st.download_button(
-                        "📥 Download Analysis Data",
+                        "📥 Download Churn Analysis",
                         csv,
-                        f"predictive_analysis_{timestamp.strftime('%H%M%S')}.csv",
+                        f"churn_analysis_{timestamp.strftime('%H%M%S')}.csv",
                         "text/csv"
                     )
                 
-                # Show predictive insights
-                if result.get("predictive_insights"):
-                    insights = result["predictive_insights"]
-                    
-                    st.subheader("🎯 Key Predictions")
-                    # Display key metrics in a nice format
-                    metrics_col1, metrics_col2 = st.columns(2)
-                    
-                    with metrics_col1:
-                        for key, value in insights.key_metrics.items():
-                            if key not in ['error', 'confidence', 'recommendations'] and isinstance(value, (int, float)):
-                                st.metric(key.replace('_', ' ').title(), f"{value:,.2f}")
-                    
-                    with metrics_col2:
-                        if insights.recommendations:
-                            st.write("**Recommended Actions:**")
-                            for rec in insights.recommendations:
-                                st.write(f"✅ {rec}")
-                    
-                    # Risk factors if available
-                    if insights.risk_factors:
-                        st.warning("**Risk Factors to Monitor:**")
-                        for risk in insights.risk_factors:
-                            st.write(f"⚠️ {risk}")
-                
-                # Show main response
-                st.subheader("💡 Analysis Summary")
-                st.markdown(result["response"])
-            
-            # Enhanced display for strategic thinking
-            elif result["type"] == "strategic_thinking":
-                st.subheader("🎯 Strategic Analysis")
-                
-                # Show thinking process if enabled
-                if st.session_state.analytics_settings["show_thinking"] and result.get("thinking_process"):
-                    with st.expander("🧠 Strategic Reasoning", expanded=False):
-                        thinking = result["thinking_process"]
-                        st.write("**Strategic Framework:**", thinking.methodology)
-                        st.write("**Analysis Scope:**", thinking.data_assessment)
-                        
-                        col_a, col_b = st.columns(2)
-                        with col_a:
-                            st.write("**Strategic Assumptions:**")
-                            for assumption in thinking.assumptions:
-                                st.write(f"• {assumption}")
-                        with col_b:
-                            st.write("**Alternative Approaches:**")
-                            for alternative in thinking.alternative_approaches:
-                                st.write(f"• {alternative}")
-                
-                # Show strategic analysis results
-                if result.get("strategic_analysis"):
-                    analysis = result["strategic_analysis"]
-                    
-                    col1, col2, col3 = st.columns(3)
-                    
-                    with col1:
-                        st.metric("Portfolio Strength", analysis.get('portfolio_strength', 'Unknown').title())
-                    with col2:
-                        advantages_count = len(analysis.get('competitive_advantages', []))
-                        st.metric("Competitive Advantages", advantages_count)
-                    with col3:
-                        opportunities_count = len(analysis.get('growth_opportunities', []))
-                        st.metric("Growth Opportunities", opportunities_count)
-                
-                # Show results if any
-                if result.get("results") is not None and not result["results"].empty:
-                    st.subheader("📊 Strategic Data")
-                    st.dataframe(result["results"], use_container_width=True)
-                
                 # Show main response
                 st.markdown(result["response"])
             
-            # Enhanced display for scenario planning
-            elif result["type"] == "scenario_planning":
-                st.subheader("🎲 Scenario Planning")
+            # Enhanced display for recommendation system
+            elif result["type"] == "recommendation_system":
+                st.subheader("🎯 Recommendation Engine Results")
                 
-                # Show thinking process if enabled
-                if st.session_state.analytics_settings["show_thinking"] and result.get("thinking_process"):
-                    with st.expander("🧠 Scenario Methodology", expanded=False):
-                        thinking = result["thinking_process"]
-                        st.write("**Planning Framework:**", thinking.methodology)
-                        st.write("**Scenario Assumptions:**")
-                        for assumption in thinking.assumptions:
-                            st.write(f"• {assumption}")
-                
-                # Show scenario results in tabs
-                if result.get("scenario_analysis") and result["scenario_analysis"].get("scenarios"):
-                    scenarios = result["scenario_analysis"]["scenarios"]
-                    
-                    tab1, tab2, tab3 = st.tabs(["🌟 Optimistic", "📊 Baseline", "⚠️ Pessimistic"])
-                    
-                    with tab1:
-                        if "optimistic" in scenarios:
-                            opt = scenarios["optimistic"]
-                            st.write(f"**Description:** {opt.get('description', 'N/A')}")
-                            
-                            col1, col2, col3 = st.columns(3)
-                            with col1:
-                                st.metric("Occupancy Change", opt.get('occupancy_change', 'N/A'))
-                            with col2:
-                                st.metric("Rent Change", opt.get('rent_change', 'N/A'))
-                            with col3:
-                                st.metric("Maintenance Change", opt.get('maintenance_change', 'N/A'))
-                            
-                            st.write(f"**Strategy:** {opt.get('strategy', 'No strategy defined')}")
-                    
-                    with tab2:
-                        if "baseline" in scenarios:
-                            base = scenarios["baseline"]
-                            st.write(f"**Description:** {base.get('description', 'N/A')}")
-                            
-                            col1, col2, col3 = st.columns(3)
-                            with col1:
-                                st.metric("Occupancy Change", base.get('occupancy_change', 'N/A'))
-                            with col2:
-                                st.metric("Rent Change", base.get('rent_change', 'N/A'))
-                            with col3:
-                                st.metric("Maintenance Change", base.get('maintenance_change', 'N/A'))
-                            
-                            st.write(f"**Strategy:** {base.get('strategy', 'No strategy defined')}")
-                    
-                    with tab3:
-                        if "pessimistic" in scenarios:
-                            pess = scenarios["pessimistic"]
-                            st.write(f"**Description:** {pess.get('description', 'N/A')}")
-                            
-                            col1, col2, col3 = st.columns(3)
-                            with col1:
-                                st.metric("Occupancy Change", pess.get('occupancy_change', 'N/A'))
-                            with col2:
-                                st.metric("Rent Change", pess.get('rent_change', 'N/A'))
-                            with col3:
-                                st.metric("Maintenance Change", pess.get('maintenance_change', 'N/A'))
-                            
-                            st.write(f"**Strategy:** {pess.get('strategy', 'No strategy defined')}")
-                
-                # Show scenario data if available
-                if result.get("results") is not None and not result["results"].empty:
-                    st.subheader("📊 Scenario Comparison")
-                    st.dataframe(result["results"], use_container_width=True)
-                
-                # Show main response
-                st.markdown(result["response"])
-            
-            # Enhanced display for trend analysis
-            elif result["type"] == "trend_analysis":
-                st.subheader("📈 Trend Analysis")
-                
-                # Show SQL
-                if result.get("sql"):
-                    with st.expander("🔍 Trend Query"):
-                        st.code(result["sql"], language="sql")
-                
-                # Show trend insights
-                if result.get("trend_insights"):
-                    insights = result["trend_insights"]
+                # Show recommendation summary
+                if result.get("recommendation_analysis"):
+                    rec_data = result["recommendation_analysis"]
                     
                     col1, col2, col3 = st.columns(3)
                     with col1:
-                        st.metric("Trend Direction", insights.get('trend_direction', 'Unknown').title())
+                        st.metric("Customers Analyzed", rec_data["total_customers_analyzed"])
                     with col2:
-                        st.metric("Trend Strength", insights.get('trend_strength', 'Unknown').title())
+                        st.metric("High-Potential Customers", rec_data["high_potential_customers"])
                     with col3:
-                        observations_count = len(insights.get('key_observations', []))
-                        st.metric("Key Observations", observations_count)
+                        st.metric("Revenue Opportunity", f"${rec_data['revenue_optimization_opportunity']:,.2f}")
                 
-                # Show results
+                # Show results table
                 if result.get("results") is not None and not result["results"].empty:
-                    st.subheader("📊 Trend Data")
+                    st.subheader("💰 Top Opportunities")
                     st.dataframe(result["results"], use_container_width=True)
-                    
-                    # Try to create a simple trend visualization
-                    if 'date' in result["results"].columns:
-                        try:
-                            trend_df = result["results"].copy()
-                            trend_df['date'] = pd.to_datetime(trend_df['date'])
-                            
-                            numeric_cols = trend_df.select_dtypes(include=[np.number]).columns
-                            if len(numeric_cols) > 0:
-                                st.subheader("📈 Trend Visualization")
-                                chart_col = numeric_cols[0]
-                                st.line_chart(trend_df.set_index('date')[chart_col])
-                        except:
-                            pass  # Skip visualization if it fails
                     
                     # Download option
                     csv = result["results"].to_csv(index=False)
                     st.download_button(
-                        "📥 Download Trend Data",
+                        "📥 Download Recommendations",
                         csv,
-                        f"trend_analysis_{timestamp.strftime('%H%M%S')}.csv",
+                        f"recommendations_{timestamp.strftime('%H%M%S')}.csv",
                         "text/csv"
                     )
                 
                 # Show main response
                 st.markdown(result["response"])
             
-            # Standard follow-up question display
-            elif result["type"] == "followup_question":
-                st.subheader("🔄 Follow-up Response")
+            # Enhanced display for customer segmentation
+            elif result["type"] == "customer_segmentation":
+                st.subheader("👥 Customer Segmentation Analysis")
                 
-                # Show how the question was resolved
-                memory = st.session_state.agent.get_or_create_memory(st.session_state.session_id)
-                if len(memory.turns) >= 2:
-                    prev_turn = memory.turns[-2]
-                    st.success(f"💡 **Connected to previous query:** {prev_turn.user_query}")
+                # Show segment overview
+                if result.get("segment_stats"):
+                    segment_data = result["segment_stats"]
+                    total_customers = sum([stats['count'] for stats in segment_data.values()])
+                    
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("Total Customers", total_customers)
+                    with col2:
+                        st.metric("Segments Identified", len(segment_data))
+                    with col3:
+                        total_value = sum([stats['total_ltv'] for stats in segment_data.values()])
+                        st.metric("Total Portfolio Value", f"${total_value:,.2f}")
                 
-                # Show SQL if generated
-                if result.get("sql"):
-                    with st.expander("🔍 Generated SQL"):
-                        st.code(result["sql"], language="sql")
-                
-                # Show results
+                # Show results table
                 if result.get("results") is not None and not result["results"].empty:
+                    st.subheader("📊 Segment Breakdown")
                     st.dataframe(result["results"], use_container_width=True)
                     
                     # Download option
                     csv = result["results"].to_csv(index=False)
                     st.download_button(
-                        "📥 Download Results",
+                        "📥 Download Segmentation",
                         csv,
-                        f"followup_results_{timestamp.strftime('%H%M%S')}.csv",
+                        f"segmentation_{timestamp.strftime('%H%M%S')}.csv",
                         "text/csv"
                     )
                 
-                # Show response
-                st.markdown("**AI Response:**")
-                st.write(result["response"])
+                # Show main response
+                st.markdown(result["response"])
             
-            # Standard SQL query display
-            elif result["type"] == "sql_query":
-                st.subheader("📊 Query Results")
+            # Enhanced display for lifetime value analysis
+            elif result["type"] == "lifetime_value":
+                st.subheader("💰 Customer Lifetime Value Analysis")
                 
-                # Show SQL
-                with st.expander("🔍 Generated SQL"):
-                    st.code(result["sql"], language="sql")
-                
-                # Show results
-                if result.get("results") is not None and not result["results"].empty:
-                    st.dataframe(result["results"], use_container_width=True)
+                # Show LTV summary
+                if result.get("customer_insights"):
+                    insights = result["customer_insights"]
+                    total_ltv = sum([c.lifetime_value for c in insights])
+                    avg_ltv = total_ltv / len(insights) if insights else 0
+                    predicted_total = sum([c.predicted_ltv for c in insights])
                     
-                    # Quick stats
-                    col_a, col_b, col_c = st.columns(3)
-                    with col_a:
-                        st.metric("Rows", len(result["results"]))
-                    with col_b:
-                        st.metric("Columns", len(result["results"].columns))
-                    with col_c:
-                        # For COUNT queries, show the actual count value
-                        df = result["results"]
-                        if len(df) == 1 and len(df.columns) == 1 and 'count' in df.columns[0].lower():
-                            actual_count = df.iloc[0, 0]
-                            st.metric("Count", actual_count)
-                        elif df.select_dtypes(include=[np.number]).columns.any():
-                            numeric_cols = df.select_dtypes(include=[np.number]).columns
-                            if len(numeric_cols) > 0:
-                                avg_val = df[numeric_cols[0]].mean()
-                                st.metric(f"Avg {numeric_cols[0]}", f"{avg_val:.2f}")
+                    col1, col2, col3, col4 = st.columns(4)
+                    with col1:
+                        st.metric("Total Portfolio LTV", f"${total_ltv:,.2f}")
+                    with col2:
+                        st.metric("Average Customer LTV", f"${avg_ltv:,.2f}")
+                    with col3:
+                        st.metric("Predicted Total LTV", f"${predicted_total:,.2f}")
+                    with col4:
+                        growth = ((predicted_total - total_ltv) / total_ltv * 100) if total_ltv > 0 else 0
+                        st.metric("Growth Potential", f"{growth:+.1f}%")
+                
+                # Show results table
+                if result.get("results") is not None and not result["results"].empty:
+                    st.subheader("🌟 Top Value Customers")
+                    st.dataframe(result["results"], use_container_width=True)
                     
                     # Download option
                     csv = result["results"].to_csv(index=False)
                     st.download_button(
-                        "📥 Download Results",
+                        "📥 Download LTV Analysis",
                         csv,
-                        f"query_results_{timestamp.strftime('%H%M%S')}.csv",
+                        f"ltv_analysis_{timestamp.strftime('%H%M%S')}.csv",
                         "text/csv"
                     )
-                else:
-                    st.warning("No results found.")
                 
-                # Show insights
-                if result.get("insights"):
-                    st.subheader("💡 Answer")
-                    insights_text = result["insights"]
-                    if insights_text and not insights_text.startswith("SELECT"):
-                        st.markdown(insights_text)
+                # Show main response
+                st.markdown(result["response"])
             
             # General query display
-            elif result["type"] == "general_query":
+            else:
                 st.subheader("💬 AI Response")
                 st.markdown(result["response"])
             
@@ -2526,11 +2462,11 @@ def main():
             if result.get("follow_up_suggestions"):
                 st.subheader("🎯 Suggested Follow-up Questions")
                 
-                # Enhanced suggestions with predictive/strategic focus
+                # Enhanced suggestions with ML focus
                 suggestion_categories = {
-                    "🔮 Predictive": [s for s in result["follow_up_suggestions"] if any(word in s.lower() for word in ['predict', 'forecast', 'future', 'trend'])],
-                    "🎯 Strategic": [s for s in result["follow_up_suggestions"] if any(word in s.lower() for word in ['strategic', 'strategy', 'opportunity', 'risk', 'competitive'])],
-                    "📊 Analytical": [s for s in result["follow_up_suggestions"] if s not in [s for s in result["follow_up_suggestions"] if any(word in s.lower() for word in ['predict', 'forecast', 'future', 'trend', 'strategic', 'strategy', 'opportunity', 'risk', 'competitive'])]]
+                    "🤖 ML Analytics": [s for s in result["follow_up_suggestions"] if any(word in s.lower() for word in ['predict', 'recommend', 'segment', 'churn', 'ltv'])],
+                    "🎯 Strategic": [s for s in result["follow_up_suggestions"] if any(word in s.lower() for word in ['strategic', 'strategy', 'opportunity', 'growth'])],
+                    "📊 Analytical": [s for s in result["follow_up_suggestions"] if s not in [s for s in result["follow_up_suggestions"] if any(word in s.lower() for word in ['predict', 'recommend', 'segment', 'churn', 'ltv', 'strategic', 'strategy', 'opportunity', 'growth'])]]
                 }
                 
                 # Display suggestions in categories
@@ -2562,25 +2498,23 @@ def main():
         
         else:
             st.error(f"❌ Error: {result.get('error', 'Unknown error occurred')}")
-            if result.get("sql"):
-                st.code(result["sql"], language="sql")
     
-    # Quick access to common predictive queries
+    # Quick access to ML analytics
     st.divider()
-    st.subheader("🚀 Quick Analytics")
+    st.subheader("🤖 Quick ML Analytics")
     
     quick_cols = st.columns(4)
     
     quick_queries = [
-        ("🔮 Occupancy Forecast", "Predict our occupancy rate for the next 6 months"),
-        ("💰 Cash Flow Analysis", "Analyze cash flow trends and predict future revenue"),
-        ("🏠 Strategic Position", "What's our strategic position and growth opportunities?"),
-        ("🔧 Maintenance Prediction", "Predict future maintenance needs and costs")
+        ("🚨 Churn Risk Analysis", "Predict which customers are at risk of churning and provide retention strategies"),
+        ("🎯 Cross-sell Opportunities", "Generate personalized recommendations for cross-selling and upselling"),
+        ("👥 Customer Segmentation", "Analyze customer segments and provide strategic insights for each group"),
+        ("💰 Lifetime Value Analysis", "Calculate customer lifetime value and identify growth opportunities")
     ]
     
     for i, (title, query_text) in enumerate(quick_queries):
         with quick_cols[i]:
-            if st.button(title, key=f"quick_{i}", use_container_width=True):
+            if st.button(title, key=f"ml_quick_{i}", use_container_width=True):
                 st.session_state.suggested_query = query_text
                 st.rerun()
 
