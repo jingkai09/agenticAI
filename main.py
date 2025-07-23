@@ -672,12 +672,17 @@ class PropertyManagementAgent:
         - Investment prioritization and resource allocation
         
         DATABASE SCHEMA:
-        - tenants(id, timestamp, first_name, last_name, email, phone, date_of_birth, created_at)
-        - properties(id, timestamp, name, address_line1, address_line2, city, state, postal_code, country, created_at)
-        - units(id, timestamp, property_id, unit_number, floor, bedrooms, bathrooms, square_feet, status, created_at)
-        - leases(id, timestamp, tenant_id, unit_id, start_date, end_date, rent_amount, security_deposit, status, created_at)
-        - payments(id, timestamp, lease_id, payment_type, billing_period, due_date, amount, method, paid_on, reference_number, created_at)
-        - service_tickets(id, timestamp, lease_id, raised_by, assigned_to, category, subcategory, description, status, priority, created_at, updated_at)
+        -- tenants(id, first_name, last_name, email, phone, date_of_birth, created_at)
+        -- properties(id, name, address_line1, address_line2, city, state, postal_code, country, created_at)
+        -- units(id, property_id, unit_number, floor, bedrooms, bathrooms, square_feet, status, created_at)
+        -- rooms(id, unit_id, room_name, room_type, size_sq_ft, status, created_at)
+        -- agents(id, first_name, last_name, email, phone, created_at)
+        -- leases(id, tenant_id, room_id, agent_id, start_date, end_date, rent_amount, security_deposit, status, created_at)
+        -- maintenance_tickets(id, room_id, unit_id, subcategory, scheduled_for, completed_on, created_at)
+        -- complaint_tickets(id, lease_id, severity, complaint_type, filed_on, resolved_on, resolution)
+        -- payments(id, lease_id, payment_type, transaction_type, due_date, amount, method, paid_on, created_at)
+        -- chat_rooms(id, tenant_id, created_at, last_updated, status)
+        -- conversation_messages(id, chat_room_id, author_type, author_id, message_text, sent_at)
         
         RESPONSE GUIDELINES:
         - Always explain your reasoning process for complex analyses
